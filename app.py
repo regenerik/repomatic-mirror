@@ -21,7 +21,7 @@ bcrypt = Bcrypt(app)   # para encriptar password
 # REGISTRAR BLUEPRINTS ( POSIBILIDAD DE UTILIZAR EL ENTORNO DE LA app EN OTROS ARCHIVOS Y GENERAR RUTAS EN LOS MISMOS )
 
 
-app.register_blueprint(admin_bp, url_prefix='/admin')  # poder registrarlo como un blueprint ( parte del app )
+app.register_blueprint(admin_bp)  # poder registrarlo como un blueprint ( parte del app )
                                                        # y si queremos podemos darle toda un path base como en el ejemplo '/admin'
 
 app.register_blueprint(public_bp, url_prefix='/public')  # blueprint public_bp
