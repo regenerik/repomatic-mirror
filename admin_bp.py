@@ -1,5 +1,5 @@
 # En el conjunto de datos que quiero separar ( en este caso este tipo de rutas ), importo...
-from flask import Blueprint, request, jsonify # Blueprint para modularizar y relacionar con app
+from flask import Blueprint, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User                                          # importar tabla "User" de models
@@ -15,7 +15,7 @@ jwt = JWTManager()
 # RUTA TEST de http://127.0.0.1:5000/admin_bp que muestra "Hola mundo":
 @admin_bp.route('/', methods=['GET'])
 def show_hello_world():
-     return "Hola mundo",200
+         return render_template('instructions.html')
 
 
 # RUTA CREAR USUARIO
