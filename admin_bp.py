@@ -1,16 +1,37 @@
 # En el conjunto de datos que quiero separar ( en este caso este tipo de rutas ), importo...
-from flask import Blueprint, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
+from flask import Blueprint,send_file, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
+from utils import exportar_reporte_excel
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
 
 bcrypt = Bcrypt()
 jwt = JWTManager()
+
+# Ruta para obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
+@admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
+def exportar_reporte():
+    print("funciona la ruta")
+    data = request.get_json()
+    if 'username' not in data or 'password' not in data:
+        return jsonify({"error": "Falta username o password en el cuerpo JSON"}), 400
+    username = data['username']
+    password = data['password']
+
+    # Llamas a la función de utils para exportar el reporte a Excel
+    excel_file = exportar_reporte_excel(username, password)
+
+    if excel_file:
+        # Devolver el archivo de Excel como respuesta a la solicitud
+        return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
+    else:
+        # Manejo de errores si no se pudo exportar el reporte
+        return "Error al exportar el reporte a Excel", 500
 
 # RUTA TEST de http://127.0.0.1:5000/admin_bp que muestra "Hola mundo":
 @admin_bp.route('/', methods=['GET'])
