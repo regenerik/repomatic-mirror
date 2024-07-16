@@ -1,11 +1,11 @@
 # En el conjunto de datos que quiero separar ( en este caso este tipo de rutas ), importo...
-from flask import Blueprint,send_file, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
+from flask import Blueprint,make_response,send_file, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_html
+from utils import exportar_reporte_json
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -24,10 +24,13 @@ def exportar_reporte():
     password = data['password']
 
     # Llamas a la función de utils para exportar el reporte a Html
-    html_file = exportar_reporte_html(username, password)
-    if html_file:
-        print("html file a ser enviado...LOG FINAL")
-        return html_file, 200, {'Content-Type': 'text/html'}
+    json_file = exportar_reporte_json(username, password)
+    if json_file:
+        print("Compilando paquete response con json dentro...")
+        response = make_response(json_file)
+        response.headers['Content-Type'] = 'application/json'
+        print("Devolviendo JSON - log final")
+        return response, 200
     else:
         return jsonify({"error": "Error al obtener el reporte en HTML, log final error"}), 500
     
@@ -42,10 +45,13 @@ def exportar_reporte_v2():
 
     print("los datos username y password fueron recuperados OK, se va a ejecutar la funcion de utils ahora...")
 
-    html_file = exportar_reporte_html(username, password)
-    if html_file:
-        print("html file a ser enviado...LOG FINAL")
-        return html_file, 200, {'Content-Type': 'text/html'}
+    json_file = exportar_reporte_json(username, password)
+    if json_file:
+        print("Compilando paquete response con json dentro...")
+        response = make_response(json_file)
+        response.headers['Content-Type'] = 'application/json'
+        print("Devolviendo JSON - log final")
+        return response, 200
     else:
         return jsonify({"error": "Error al obtener el reporte en HTML, log final error"}), 500
 

@@ -4,6 +4,7 @@ import re
 import tempfile
 import pandas as pd
 from io import BytesIO
+import json
 
 def obtener_sesskey(html):
     soup = BeautifulSoup(html, 'html.parser')
@@ -15,7 +16,7 @@ def obtener_sesskey(html):
             return sesskey.group(1)
     return None
 
-def exportar_reporte_html(username, password):
+def exportar_reporte_json(username, password):
     session = requests.Session()
     print("Utils inciando. Entrando y recuperando token inicial...")
 
@@ -74,14 +75,15 @@ def exportar_reporte_html(username, password):
 
     
     if export_response.status_code == 200:
-        print("Exportación exitosa")
+        print("Excel recuperado. Transformando a json...")
 
-        # Leer el archivo Excel y convertir a HTML
+        # Leer el archivo Excel y convertir a JSON
         excel_data = BytesIO(export_response.content)
         df = pd.read_excel(excel_data, engine='openpyxl')
-        html_data = df.to_html(index=False)  # Convertir DataFrame a HTML
+        json_data = df.to_json(orient='records')  # Convertir DataFrame a JSON
+        print("Enviando json de utils a la ruta...")
+        return json_data
 
-        return html_data
     else:
         print("Error en la exportación")
         return None
