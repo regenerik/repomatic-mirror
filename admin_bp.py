@@ -23,15 +23,7 @@ def exportar_reporte():
     username = data['username']
     password = data['password']
 
-    # Llamas a la función de utils para exportar el reporte a Excel
-    # excel_file = exportar_reporte_html(username, password)
-
-    # if excel_file:
-    #     # Devolver el archivo de Excel como respuesta a la solicitud
-    #     return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
-    # else:
-    #     # Manejo de errores si no se pudo exportar el reporte
-    #     return "Error al exportar el reporte a Excel", 500
+    # Llamas a la función de utils para exportar el reporte a Html
     html_file = exportar_reporte_html(username, password)
     if html_file:
         print("html file a ser enviado...LOG FINAL")

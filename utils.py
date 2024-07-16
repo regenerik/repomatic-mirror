@@ -57,7 +57,7 @@ def exportar_reporte_html(username, password):
         return None
     print("sESSION KEY - Recuperado, recuperando reporte...")
 
-    # Paso 4: Exportar los datos en formato Excel
+    # Paso 4: Traer los datos en excel
     export_payload = {
         "sesskey": sesskey,
         "_qf__report_builder_export_form": "1",
@@ -70,7 +70,9 @@ def exportar_reporte_html(username, password):
     }
 
     export_response = session.post(dashboard_url, data=export_payload, headers=export_headers)
+    print("ESTE ES EL EXPORT RESPONSE: ", export_response)
 
+    
     if export_response.status_code == 200:
         print("Exportación exitosa")
 
