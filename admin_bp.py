@@ -35,7 +35,7 @@ def exportar_reporte():
     
 # Ruta 2 para obtener usuarios por asignacion para gestores ( via params )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores_v2', methods=['GET'])
-def exportar_reporte():
+def exportar_reporte_v2():
     username = request.args.get('username')
     password = request.args.get('password')
 
