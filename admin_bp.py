@@ -32,6 +32,25 @@ def exportar_reporte():
     else:
         # Manejo de errores si no se pudo exportar el reporte
         return "Error al exportar el reporte a Excel", 500
+    
+# Ruta 2 para obtener usuarios por asignacion para gestores ( via params )
+@admin_bp.route('/usuarios_por_asignacion_para_gestores_v2', methods=['GET'])
+def exportar_reporte():
+    username = request.args.get('username')
+    password = request.args.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Falta username o password en los parámetros de la URL"}), 400
+
+    # Llamas a la función de utils para exportar el reporte a Excel
+    excel_file = exportar_reporte_excel(username, password)
+
+    if excel_file:
+        # Devolver el archivo de Excel como respuesta a la solicitud
+        return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
+    else:
+        # Manejo de errores si no se pudo exportar el reporte
+        return "Error al exportar el reporte a Excel", 500
 
 # RUTA DOCUMENTACION
 @admin_bp.route('/', methods=['GET'])
