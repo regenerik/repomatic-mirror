@@ -5,7 +5,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_html
+from utils import exportar_reporte_excel
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -24,20 +24,15 @@ def exportar_reporte():
     password = data['password']
 
     # Llamas a la función de utils para exportar el reporte a Excel
-    # excel_file = exportar_reporte_html(username, password)
+    excel_file = exportar_reporte_excel(username, password)
 
-    # if excel_file:
-    #     # Devolver el archivo de Excel como respuesta a la solicitud
-    #     return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
-    # else:
-    #     # Manejo de errores si no se pudo exportar el reporte
-    #     return "Error al exportar el reporte a Excel", 500
-    html_file = exportar_reporte_html(username, password)
-    if html_file:
-        print("html file a ser enviado...LOG FINAL")
-        return html_file, 200, {'Content-Type': 'text/html'}
+    if excel_file:
+        # Devolver el archivo de Excel como respuesta a la solicitud
+        return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
     else:
-        return jsonify({"error": "Error al obtener el reporte en HTML, log final error"}), 500
+        # Manejo de errores si no se pudo exportar el reporte
+        return "Error al exportar el reporte a Excel", 500
+
     
 # Ruta 2 para obtener usuarios por asignacion para gestores ( via params )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores_v2', methods=['GET'])
@@ -49,13 +44,18 @@ def exportar_reporte_v2():
         return jsonify({"error": "Falta username o password en los parámetros de la URL"}), 400
 
     print("los datos username y password fueron recuperados OK, se va a ejecutar la funcion de utils ahora...")
+    # Llamas a la función de utils para exportar el reporte a Excel
+    excel_file = exportar_reporte_excel(username, password)
 
-    html_file = exportar_reporte_html(username, password)
-    if html_file:
-        print("html file a ser enviado...LOG FINAL")
-        return html_file, 200, {'Content-Type': 'text/html'}
+    if excel_file:
+        print("excel_file existe y se está por devolver")
+        # Devolver el archivo de Excel como respuesta a la solicitud
+        return send_file(excel_file, as_attachment=True, download_name='reporte_excel.xlsx')
     else:
-        return jsonify({"error": "Error al obtener el reporte en HTML, log final error"}), 500
+        # Manejo de errores si no se pudo exportar el reporte
+        return "Error al exportar el reporte a Excel", 500
+
+
 
 # RUTA DOCUMENTACION
 @admin_bp.route('/', methods=['GET'])
@@ -138,16 +138,3 @@ def get_token():
 @admin_bp.route('/users')
 @jwt_required()  # Decorador para requerir autenticación con JWT
 def show_users():
-    current_user_id = get_jwt_identity()  # Obtiene la id del usuario del token
-    if current_user_id:
-        users = User.query.all()
-        user_list = []
-        for user in users:
-            user_dict = {
-                'id': user.id,
-                'email': user.email
-            }
-            user_list.append(user_dict)
-        return jsonify(user_list), 200
-    else:
-        return {"Error": "Token inválido o vencido"}, 401

@@ -1,9 +1,9 @@
+# utils.py
+
 import requests
 from bs4 import BeautifulSoup
 import re
 import tempfile
-import pandas as pd
-from io import BytesIO
 
 def obtener_sesskey(html):
     soup = BeautifulSoup(html, 'html.parser')
@@ -15,10 +15,9 @@ def obtener_sesskey(html):
             return sesskey.group(1)
     return None
 
-def exportar_reporte_html(username, password):
+def exportar_reporte_excel(username, password):
     session = requests.Session()
     print("Utils inciando. Entrando y recuperando token inicial...")
-
     # Paso 1: Obtener el logintoken
     login_page_url = "https://www.campuscomercialypf.com/login/index.php"
     login_page_response = session.get(login_page_url)
@@ -26,7 +25,6 @@ def exportar_reporte_html(username, password):
     logintoken_input = login_page_soup.find('input', {'name': 'logintoken'})
     logintoken = logintoken_input['value'] if logintoken_input else None
     print("token recuperado. Iniciando login")
-
     # Paso 2: Realizar el inicio de sesión
     login_payload = {
         "username": username,
@@ -40,6 +38,7 @@ def exportar_reporte_html(username, password):
 
     login_response = session.post(login_page_url, data=login_payload, headers=login_headers)
 
+    # Verificar si se ha iniciado sesión correctamente
     if login_response.status_code == 200 and "TotaraSession" in session.cookies:
         print("Inicio de sesión exitoso")
     else:
@@ -52,12 +51,12 @@ def exportar_reporte_html(username, password):
     dashboard_html = dashboard_response.text
     sesskey = obtener_sesskey(dashboard_html)
 
+    # Verificar si se pudo obtener el sesskey
     if not sesskey:
         print("Error: No se pudo obtener el sesskey")
         return None
     print("sESSION KEY - Recuperado, recuperando reporte...")
-
-    # Paso 4: Exportar los datos en formato Excel
+    # Paso 4: Seleccionar "Excel" como formato de exportación y exportar el archivo
     export_payload = {
         "sesskey": sesskey,
         "_qf__report_builder_export_form": "1",
@@ -71,15 +70,15 @@ def exportar_reporte_html(username, password):
 
     export_response = session.post(dashboard_url, data=export_payload, headers=export_headers)
 
+    # Verificar la respuesta de la exportación
     if export_response.status_code == 200:
         print("Exportación exitosa")
 
-        # Leer el archivo Excel y convertir a HTML
-        excel_data = BytesIO(export_response.content)
-        df = pd.read_excel(excel_data, engine='openpyxl')
-        html_data = df.to_html(index=False)  # Convertir DataFrame a HTML
+        # Crear un archivo temporal y escribir el contenido de export_response en él
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(export_response.content)
 
-        return html_data
+        return temp_file.name  # Devolver el nombre del archivo temporal
     else:
         print("Error en la exportación")
         return None
