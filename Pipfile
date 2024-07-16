@@ -12,6 +12,8 @@ flask_sqlalchemy = "*"
 flask_jwt_extended = "*"
 importlib_metadata = "==6.7.0"
 zipp = "==3.15.0"
+pandas = "*"
+openpyxl = "*"
 
 [dev-packages]
 
