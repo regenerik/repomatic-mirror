@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Instrucciones de Uso de la API Repomatic - Sección /admin - v1.1.1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #2e6da4;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        code {
+            font-family: Consolas, monospace;
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Instrucciones de Uso de la API</h1>
+        <p>Para utilizar esta API, sigue estos pasos:</p>
+        <ol>
+            <li>Envía una solicitud POST a la siguiente URL: <code>https://repomatic.onrender.com/usuarios_por_asignacion_para_gestores</code>.
+            </li>
+            <li>Este pedido demora alrededor de 4 minutos y el peso de su respuesta es aprox 4,16 Mb. El pedido post lleva en el body ... Ej:
+            </li>
+        </ol>
+        <pre>
+    {
+        "username": "tu usuario campus",
+        "password": "tu password campus"
+    }
+        </pre>
+
+        <h2>Estado de la tarea</h2>
+        <button id="start-task">Iniciar Tarea</button>
+        <div id="progress">
+            <p>Progreso actual: <span id="progress-text">0%</span></p>
+        </div>
+        <div id="result">
+            <p><a id="download-link" href="#" style="display:none;">Descargar Reporte</a></p>
+        </div>
+    </div>
+    <br>
+    <p>¡Gracias por utilizar la API! - Creado 08/07/24 by Regenerik</p>
+
+    <script>
+        document.getElementById('start-task').addEventListener('click', function() {
+            fetch('/admin/usuarios_por_asignacion_para_gestores', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: 'tu usuario campus',
+                    password: 'tu password campus'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const interval = setInterval(() => {
+                    fetch('/admin/task-status')
+                        .then(response => response.json())
+                        .then(status => {
+                            document.getElementById('progress-text').innerText = `${status.progress}%`;
+                            if (status.state === 'COMPLETED') {
+                                clearInterval(interval);
+                                document.getElementById('download-link').style.display = 'block';
+                                document.getElementById('download-link').href = '/admin/get-file';
+                            } else if (status.state === 'FAILED') {
+                                clearInterval(interval);
+                                alert('La tarea falló.');
+                            }
+                        });
+                }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

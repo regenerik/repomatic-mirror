@@ -13,7 +13,7 @@ admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Bl
 bcrypt = Bcrypt()
 jwt = JWTManager()
 
-# Ruta para obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
+# Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
 def exportar_reporte():
     print("funciona la ruta")
@@ -33,7 +33,7 @@ def exportar_reporte():
         # Manejo de errores si no se pudo exportar el reporte
         return "Error al exportar el reporte a Excel", 500
 
-# RUTA TEST de http://127.0.0.1:5000/admin_bp que muestra "Hola mundo":
+# RUTA DOCUMENTACION
 @admin_bp.route('/', methods=['GET'])
 def show_hello_world():
          return render_template('instructions.html')
