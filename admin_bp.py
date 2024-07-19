@@ -29,6 +29,12 @@ def authorize():
         return jsonify({'message': 'Unauthorized'}), 401
 #--------------------------------------------------------
 
+# Ruta de prueba time-out--------------------------------
+@admin_bp.route('/test', methods=['GET'])
+def test():
+    return jsonify({'message': 'test bien sucedido','status':"Si lees esto, tenemos que ver como manejar el timeout porque los archivos llegan..."}),200
+
+
 
 # Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
