@@ -11,6 +11,8 @@
 .pnp.js
 src/api/myenv/lib/
 /myenv
+.env
+env
 
 # testing
 /coverage

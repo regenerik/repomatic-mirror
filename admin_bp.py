@@ -6,12 +6,29 @@ from models import User                                          # importar tabl
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
 from utils import exportar_reporte_json
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
 
 bcrypt = Bcrypt()
 jwt = JWTManager()
+
+# Sistema de key base pre rutas ------------------------:
+
+API_KEY = os.getenv('API_KEY')
+
+def check_api_key(api_key):
+    return api_key == API_KEY
+
+@admin_bp.before_request
+def authorize():
+    api_key = request.headers.get('Authorization')
+    if not api_key or not check_api_key(api_key):
+        return jsonify({'message': 'Unauthorized'}), 401
+#--------------------------------------------------------
+
 
 # Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
@@ -82,18 +99,16 @@ def create_user():
         # Ensamblamos el usuario nuevo
         new_user = User(email=email, password=password_hash, name=name)
 
-
         db.session.add(new_user)
         db.session.commit()
 
-        good_to_share_user = {
+        good_to_share_to_user = {
             'id': new_user.id,
             'name':new_user.name,
-            'email':new_user.email,
-            'password':password
+            'email':new_user.email
         }
 
-        return jsonify({'message': 'User created successfully.','user_created':good_to_share_user}), 201
+        return jsonify({'message': 'User created successfully.','user_created':good_to_share_to_user}), 201
 
     except Exception as e:
         return jsonify({'error': 'Error in user creation: ' + str(e)}), 500
