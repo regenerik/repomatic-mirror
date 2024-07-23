@@ -1,13 +1,13 @@
-# En el conjunto de datos que quiero separar ( en este caso este tipo de rutas ), importo...
-from flask import Blueprint,make_response,send_file, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
+from flask import Blueprint,make_response,send_file, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User, Reporte1                                # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte
-import os
-from dotenv import load_dotenv
+from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey
+from threading import Thread
+import os                                                        # Para datos .env
+from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -100,12 +100,29 @@ def exportar_y_guardar_reporte_ruta():
     password = data['password']
     url = data['url']
 
+    # Llamando al inicio de session por separado y recuperando resultados...
+    session, sesskey = iniciar_sesion_y_obtener_sesskey(username, password, url)
+    if not session or not sesskey:
+        print("Error al iniciar sesión o al obtener el sesskey.")
+        return jsonify({"error": "Error al iniciar sesión o al obtener el sesskey"}), 500
+    
+    # Lanzar la función de exportar y guardar reporte en un hilo separado
+    thread = Thread(target=run_exportar_y_guardar_reporte, args=(current_app._get_current_object(),session, sesskey, username, url))
+    thread.start()
+
+    return jsonify({"message": "El proceso de recuperación del reporte ha comenzado"}), 200
+
+def run_exportar_y_guardar_reporte(app, session, sesskey, username, url):
+    with app.app_context():
+        exportar_y_guardar_reporte(session, sesskey, username, url)
+
     # Llamando a la función de utils para exportar y guardar el reporte
-    success = exportar_y_guardar_reporte(username, password, url)
-    if success:
-        return jsonify({"message": "Reporte guardado exitosamente"}), 200
-    else:
-        return jsonify({"error": "Error al obtener o guardar el reporte"}), 500
+    # success = exportar_y_guardar_reporte(session, sesskey, username, url)
+    # if success:
+    #     return jsonify({"message": "Reporte guardado exitosamente"}), 200
+    # else:
+    #     return jsonify({"error": "Error al obtener o guardar el reporte"}), 500
+    
     
 
 @admin_bp.route('/obtener_reporte', methods=['POST'])

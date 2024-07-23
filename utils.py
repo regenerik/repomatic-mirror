@@ -93,12 +93,8 @@ def exportar_reporte_json(username, password, report_url):
 
 # -----------------------------------UTILS PARA LLAMADA MULTIPLE------------------------------------
 
-def exportar_y_guardar_reporte(username, password, report_url):
-    session, sesskey = iniciar_sesion_y_obtener_sesskey(username, password, report_url)
-    if not session or not sesskey:
-        print("Error al iniciar sesión o al obtener el sesskey.")
-        return False
-    
+def exportar_y_guardar_reporte(session, sesskey, username, report_url):
+
     print("Recuperando reporte desde la URL...")
 
     # Paso 4: Traer los datos en excel
@@ -128,7 +124,8 @@ def exportar_y_guardar_reporte(username, password, report_url):
 
         ReportTable = report_tables.get(report_url)
         if not ReportTable:
-            return None
+            # EN UN FUTURO ACA PODRIAMOS GUARDAR EN DB EN UNA TABLA DE ERRORES CUANDO Y QUE URL NO FUNCIONO
+            return
 
         # Traduce el contenido de la respuesta a binario
         excel_data = BytesIO(export_response.content)
@@ -142,11 +139,11 @@ def exportar_y_guardar_reporte(username, password, report_url):
         db.session.add(report)
         db.session.commit()
         print("Reporte guardado en la base de datos.")
-        return True
+
 
     else:
         print("Error en la exportación")
-        return False
+
 
 
 def obtener_reporte(reporte_url, username):
