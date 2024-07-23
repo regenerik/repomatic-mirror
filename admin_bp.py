@@ -2,10 +2,10 @@
 from flask import Blueprint,make_response,send_file, request, jsonify, render_template # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User                                          # importar tabla "User" de models
+from models import User, Reporte1                                # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_json
+from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -27,27 +27,32 @@ def authorize():
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
         return jsonify({'message': 'Unauthorized'}), 401
-#--------------------------------------------------------
+    
+#--------------------------------RUTAS SINGLE---------------------------------
 
 # Ruta de prueba time-out--------------------------------
 @admin_bp.route('/test', methods=['GET'])
 def test():
     return jsonify({'message': 'test bien sucedido','status':"Si lees esto, tenemos que ver como manejar el timeout porque los archivos llegan..."}),200
 
-
+# RUTA DOCUMENTACION
+@admin_bp.route('/', methods=['GET'])
+def show_hello_world():
+         return render_template('instructions.html')
 
 # Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
 def exportar_reporte():
     print("funciona la ruta")
     data = request.get_json()
-    if 'username' not in data or 'password' not in data:
-        return jsonify({"error": "Falta username o password en el cuerpo JSON"}), 400
+    if 'username' not in data or 'password' not in data or 'url' not in data:
+        return jsonify({"error": "Falta username,password o url en el cuerpo JSON"}), 400
     username = data['username']
     password = data['password']
+    url = data['url']
 
     # Llamas a la función de utils para exportar el reporte a Html
-    json_file = exportar_reporte_json(username, password)
+    json_file = exportar_reporte_json(username, password, url)
     if json_file:
         print("Compilando paquete response con json dentro...")
         response = make_response(json_file)
@@ -62,13 +67,14 @@ def exportar_reporte():
 def exportar_reporte_v2():
     username = request.args.get('username')
     password = request.args.get('password')
+    url = request.args.get('url')
 
-    if not username or not password:
+    if not username or not password or not url:
         return jsonify({"error": "Falta username o password en los parámetros de la URL"}), 400
 
     print("los datos username y password fueron recuperados OK, se va a ejecutar la funcion de utils ahora...")
 
-    json_file = exportar_reporte_json(username, password)
+    json_file = exportar_reporte_json(username, password, url)
     if json_file:
         print("Compilando paquete response con json dentro...")
         response = make_response(json_file)
@@ -78,10 +84,54 @@ def exportar_reporte_v2():
     else:
         return jsonify({"error": "Error al obtener el reporte en HTML, log final error"}), 500
 
-# RUTA DOCUMENTACION
-@admin_bp.route('/', methods=['GET'])
-def show_hello_world():
-         return render_template('instructions.html')
+# --------------------------------------------------------------------------------
+
+
+#--------------------------------RUTAS MULTIPLES-----------------------------------
+
+@admin_bp.route('/recuperar_reporte', methods=['POST'])
+def exportar_y_guardar_reporte_ruta():
+    print("funciona la ruta")
+    data = request.get_json()
+    if 'username' not in data or 'password' not in data or 'url' not in data:
+        return jsonify({"error": "Falta username, password, url o user_id en el cuerpo JSON"}), 400
+    
+    username = data['username']
+    password = data['password']
+    url = data['url']
+
+    # Llamando a la función de utils para exportar y guardar el reporte
+    success = exportar_y_guardar_reporte(username, password, url)
+    if success:
+        return jsonify({"message": "Reporte guardado exitosamente"}), 200
+    else:
+        return jsonify({"error": "Error al obtener o guardar el reporte"}), 500
+    
+
+@admin_bp.route('/obtener_reporte', methods=['POST'])
+def descargar_reporte():
+    print("Funciona la ruta de descarga")
+    data = request.get_json()
+    if 'reporte_url' not in data or 'username' not in data:
+        return jsonify({"error": "Falta reporte_id o username en el cuerpo JSON"}), 400
+    
+    reporte_url = data['reporte_url']
+    username = data['username']
+    
+    reporte_data = obtener_reporte(reporte_url, username)
+    if reporte_data:
+        response = make_response(reporte_data)
+        response.headers['Content-Type'] = 'application/octet-stream'
+        response.headers['Content-Disposition'] = f'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.xlsx'
+        return response, 200
+    else:
+        return jsonify({"error": "No se encontró el reporte"}), 404
+
+
+
+
+
+
 
 
 # RUTA CREAR USUARIO
