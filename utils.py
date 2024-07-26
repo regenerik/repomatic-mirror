@@ -4,9 +4,9 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import Reporte1, Reporte2
+from models import Reporte
 
-# -----------------------------------UTILS PARA LLAMADA SIMPLE--------------------------------------
+# ----------------------------UTILS GENERAL PARA LOGGIN SESSION Y SESSKEY--------------------
 
 def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     session = requests.Session()
@@ -53,6 +53,9 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
             return session, sesskey.group(1)
     print("Error: No se pudo obtener el sesskey")
     return None, None
+
+
+# -----------------------------------UTILS PARA LLAMADA SIMPLE------------------------------------
 
 def exportar_reporte_json(username, password, report_url):
     session, sesskey = iniciar_sesion_y_obtener_sesskey(username, password, report_url)
@@ -113,32 +116,24 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
     print("ESTE ES EL EXPORT RESPONSE: ", export_response)
 
     if export_response.status_code == 200:
+
         print("Excel recuperado. Guardando en la base de datos...")
-        # Ver en que tabla vamos a guardar el repo segun la url...
 
-        report_tables = {
-            "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133": Reporte1,
-            "https://www.campuscomercialypf.com/otra_url": Reporte2,
-            # Agrega más si tienes más tablas
-        }
-
-        ReportTable = report_tables.get(report_url)
-        if not ReportTable:
-            # EN UN FUTURO ACA PODRIAMOS GUARDAR EN DB EN UNA TABLA DE ERRORES CUANDO Y QUE URL NO FUNCIONO
-            return
-
-        # Traduce el contenido de la respuesta a binario
+        # Pasamos el excel a binario
         excel_data = BytesIO(export_response.content)
 
         # Elimina registros previos en la tabla que corresponde
-        ReportTable.query.filter_by(user_id=username).delete()
-        db.session.commit()
+        report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
+        if report_to_delete:
+            db.session.delete(report_to_delete)
+            db.session.commit()
+            print("Reporte previo eliminado >>> guardando el nuevo...")
 
         # Instancia el nuevo registro a la tabla que corresponde y guarda en db
-        report = ReportTable(user_id=username, data=excel_data.read())
+        report = Reporte(user_id=username, report_url=report_url, data=excel_data.read())
         db.session.add(report)
         db.session.commit()
-        print("Reporte guardado en la base de datos.")
+        print("Reporte nuevo guardado en la base de datos.")
 
 
     else:
@@ -147,17 +142,9 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
 
 def obtener_reporte(reporte_url, username):
-    report_tables = {
-        "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133": Reporte1,
-        "https://www.campuscomercialypf.com/otra url": Reporte2,
-        # Agrega más si tienes más tablas
-    }
 
-    ReportTable = report_tables.get(reporte_url)
-    if not ReportTable:
-        return None
 
-    report = ReportTable.query.filter_by(user_id=username).order_by(ReportTable.created_at.desc()).first()
+    report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
     if report:
         return report.data
     else:
