@@ -5,6 +5,7 @@ import pandas as pd
 from io import BytesIO
 from database import db
 from models import Reporte
+from sqlalchemy.exc import SQLAlchemyError
 
 # ----------------------------UTILS GENERAL PARA LOGGIN SESSION Y SESSKEY--------------------
 
@@ -101,43 +102,57 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
     print("Recuperando reporte desde la URL...")
 
     # Paso 4: Traer los datos en excel
+    # export_payload = {
+    #     "sesskey": sesskey,
+    #     "_qf__report_builder_export_form": "1",
+    #     "format": "excel",
+    #     "export": "Exportar"
+    # }
+
+        # Paso 4: Traer los datos en csv
     export_payload = {
         "sesskey": sesskey,
         "_qf__report_builder_export_form": "1",
-        "format": "excel",
+        "format": "csv",
         "export": "Exportar"
     }
+
     export_headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Referer": report_url
     }
+    try:
+            export_response = session.post(report_url, data=export_payload, headers=export_headers)
+            export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-    export_response = session.post(report_url, data=export_payload, headers=export_headers)
-    print("ESTE ES EL EXPORT RESPONSE: ", export_response)
+            print("ESTE ES EL EXPORT RESPONSE: ", export_response)
 
-    if export_response.status_code == 200:
+            print("Excel recuperado. Guardando en la base de datos...")
 
-        print("Excel recuperado. Guardando en la base de datos...")
+            # Pasamos el excel a binario
+            excel_data = BytesIO(export_response.content)
 
-        # Pasamos el excel a binario
-        excel_data = BytesIO(export_response.content)
+            # Elimina registros previos en la tabla que corresponde
+            report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
+            if report_to_delete:
+                db.session.delete(report_to_delete)
+                db.session.commit()
+                print("Reporte previo eliminado >>> guardando el nuevo...")
 
-        # Elimina registros previos en la tabla que corresponde
-        report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
-        if report_to_delete:
-            db.session.delete(report_to_delete)
+            # Instancia el nuevo registro a la tabla que corresponde y guarda en db
+            report = Reporte(user_id=username, report_url=report_url, data=excel_data.read())
+            db.session.add(report)
             db.session.commit()
-            print("Reporte previo eliminado >>> guardando el nuevo...")
+            print("Reporte nuevo guardado en la base de datos.")
 
-        # Instancia el nuevo registro a la tabla que corresponde y guarda en db
-        report = Reporte(user_id=username, report_url=report_url, data=excel_data.read())
-        db.session.add(report)
-        db.session.commit()
-        print("Reporte nuevo guardado en la base de datos.")
+    except requests.RequestException as e:
+        print(f"Error en la recuperación del reporte desde el campus. El siguiente error se recuperó: {e}")
 
+    except SQLAlchemyError as e:
+        print(f"Error en la base de datos: {e}")
 
-    else:
-        print("Error en la exportación")
+    except Exception as e:
+        print(f"Error inesperado: {e}")
 
 
 
