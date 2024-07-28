@@ -122,12 +122,7 @@ def run_exportar_y_guardar_reporte(app, session, sesskey, username, url):
     with app.app_context():
         exportar_y_guardar_reporte(session, sesskey, username, url)
 
-    # Llamando a la función de utils para exportar y guardar el reporte
-    # success = exportar_y_guardar_reporte(session, sesskey, username, url)
-    # if success:
-    #     return jsonify({"message": "Reporte guardado exitosamente"}), 200
-    # else:
-    #     return jsonify({"error": "Error al obtener o guardar el reporte"}), 500
+
     
     
 
@@ -136,16 +131,39 @@ def descargar_reporte():
     print("Funciona la ruta de descarga")
     data = request.get_json()
     if 'reporte_url' not in data or 'username' not in data:
-        return jsonify({"error": "Falta reporte_id o username en el cuerpo JSON"}), 400
+        return jsonify({"error": "Falta reporte_id, username o tipo de archivo en el cuerpo JSON"}), 400
     
     reporte_url = data['reporte_url']
     username = data['username']
+    file_type = data.get('file_type', 'csv')
     
     reporte_data = obtener_reporte(reporte_url, username)
     if reporte_data:
-        response = make_response(reporte_data)
-        response.headers['Content-Type'] = 'application/octet-stream'
-        response.headers['Content-Disposition'] = f'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.xlsx'
+        if file_type == 'xlsx':
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.xlsx'
+        elif file_type == 'json':
+            # Assuming reporte_data is already in JSON format
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.json'
+        elif file_type == 'html':
+            # Assuming reporte_data is in HTML format
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = 'text/html'
+            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.html'
+        elif file_type == 'csv':
+            # Assuming reporte_data is in CSV format
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.csv'
+        else:
+            # Default to CSV if the file_type is unknown
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.csv'
+
         return response, 200
     else:
         return jsonify({"error": "No se encontró el reporte"}), 404
