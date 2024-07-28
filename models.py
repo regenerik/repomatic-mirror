@@ -13,5 +13,7 @@ class Reporte(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     report_url = db.Column(db.String(255), nullable=False)
     data = db.Column(db.LargeBinary, nullable=False)
+    size = db.Column(db.Float, nullable=False)
+    elapsed_time = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow) # revisar si .UTC va o si cambiamos a .utcnow
 

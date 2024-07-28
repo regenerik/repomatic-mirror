@@ -6,6 +6,32 @@ from io import BytesIO
 from database import db
 from models import Reporte
 from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
+import pytz
+# Zona horaria de São Paulo/Buenos Aires
+tz = pytz.timezone('America/Sao_Paulo')
+
+#-----------------------------CAPTURAR REPORTES EXISTENTES-----------------------------------
+def compilar_reportes_existentes():
+    reportes = Reporte.query.all()
+    reportes_serializados = []
+
+    for reporte in reportes:
+        # Convertir la fecha de UTC a la zona horaria local
+        created_at_utc = reporte.created_at.replace(tzinfo=pytz.utc)
+        created_at_local = created_at_utc.astimezone(tz)
+        reporte_dict = {
+            'id': reporte.id,
+            'user_id': reporte.user_id,
+            'report_url': reporte.report_url,
+            'size_megabytes': reporte.size,
+            'elapsed_time': reporte.elapsed_time,
+            'created_at': created_at_local.strftime("%d/%m/%Y %H:%M:%S")
+
+        }
+        reportes_serializados.append(reporte_dict)
+
+    return reportes_serializados
 
 # ----------------------------UTILS GENERAL PARA LOGGIN SESSION Y SESSKEY--------------------
 
@@ -99,7 +125,8 @@ def exportar_reporte_json(username, password, report_url):
 
 def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
-    print("Recuperando reporte desde la URL...")
+    hora_inicio = datetime.now()
+    print(f"Recuperando reporte desde la URL... Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
     # Paso 4: Traer los datos en excel
     # export_payload = {
@@ -126,11 +153,22 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
             export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
             print("ESTE ES EL EXPORT RESPONSE: ", export_response)
+            
 
-            print("Excel recuperado. Guardando en la base de datos...")
+            # Captura la hora de finalización
+            hora_descarga_finalizada = datetime.now()
 
-            # Pasamos el excel a binario
-            excel_data = BytesIO(export_response.content)
+            # Calcula el intervalo de tiempo
+            elapsed_time = hora_descarga_finalizada - hora_inicio
+            elapsed_time_str = str(elapsed_time)
+            print(f"CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
+
+            print("Ahora guardando en la base de datos...")
+
+            # Pasamos el excel a binario y rescatamos el peso
+            csv_data = BytesIO(export_response.content)
+
+            size_megabytes = (len(csv_data.getvalue())) / 1_048_576
 
             # Elimina registros previos en la tabla que corresponde
             report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
@@ -140,7 +178,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                 print("Reporte previo eliminado >>> guardando el nuevo...")
 
             # Instancia el nuevo registro a la tabla que corresponde y guarda en db
-            report = Reporte(user_id=username, report_url=report_url, data=excel_data.read())
+            report = Reporte(user_id=username, report_url=report_url, data=csv_data.read(),size= size_megabytes, elapsed_time= elapsed_time_str)
             db.session.add(report)
             db.session.commit()
             print("Reporte nuevo guardado en la base de datos.")

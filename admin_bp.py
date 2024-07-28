@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey
+from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from threading import Thread
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -30,7 +30,7 @@ def authorize():
     
 #--------------------------------RUTAS SINGLE---------------------------------
 
-# Ruta de prueba time-out--------------------------------
+# Ruta de prueba time-out-test------------------------------------------------
 @admin_bp.route('/test', methods=['GET'])
 def test():
     return jsonify({'message': 'test bien sucedido','status':"Si lees esto, tenemos que ver como manejar el timeout porque los archivos llegan..."}),200
@@ -39,6 +39,12 @@ def test():
 @admin_bp.route('/', methods=['GET'])
 def show_hello_world():
          return render_template('instructions.html')
+
+# RUTA REPORTES DISPONIBLES CON DATOS-----------------------------------------
+@admin_bp.route('/reportes_disponibles', methods=['GET'])
+def reportes_disponibles():
+    lista_reportes = compilar_reportes_existentes()
+    return jsonify({'lista_reportes': lista_reportes , 'result':'ok'}), 200
 
 # Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
