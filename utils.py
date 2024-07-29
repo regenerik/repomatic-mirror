@@ -41,11 +41,16 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
 
     # Paso 1: Obtener el logintoken
     login_page_url = "https://www.campuscomercialypf.com/login/index.php"
-    login_page_response = session.get(login_page_url)
-    login_page_soup = BeautifulSoup(login_page_response.text, 'html.parser')
-    logintoken_input = login_page_soup.find('input', {'name': 'logintoken'})
-    logintoken = logintoken_input['value'] if logintoken_input else None
-    print("Token recuperado. Iniciando login")
+    try:
+        login_page_response = session.get(login_page_url, timeout=10)
+        login_page_soup = BeautifulSoup(login_page_response.text, 'html.parser')
+        logintoken_input = login_page_soup.find('input', {'name': 'logintoken'})
+        logintoken = logintoken_input['value'] if logintoken_input else None
+        print("Token recuperado. Iniciando login")
+    except requests.exceptions.RequestException as e:
+        print(f"Error al obtener la página de login: {e}")
+        print("Si llegaste a este error, puede ser que la red esté caída o la URL del campus haya cambiado.")
+        return None, None
 
     # Paso 2: Realizar el inicio de sesión
     login_payload = {
@@ -195,11 +200,10 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
 
 
-def obtener_reporte(reporte_url, username):
-
-
+def obtener_reporte(reporte_url):
     report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
     if report:
-        return report.data
+        return report.data, report.created_at
     else:
-        return None
+        return None, None
+

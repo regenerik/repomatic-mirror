@@ -3,11 +3,12 @@ from flask_bcrypt import Bcrypt                                  # Bcrypt para e
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
-from datetime import timedelta                                   # importa tiempo especifico para rendimiento de token válido
+from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
 from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
+import pytz
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -92,7 +93,7 @@ def exportar_reporte_v2():
 # --------------------------------------------------------------------------------
 
 
-#--------------------------------RUTAS MULTIPLES-----------------------------------
+#--------------------------------RUTAS MULTIPLES-----------------------------------------------------------------------------------
 
 @admin_bp.route('/recuperar_reporte', methods=['POST'])
 def exportar_y_guardar_reporte_ruta():
@@ -135,38 +136,42 @@ def descargar_reporte():
     username = data['username']
     file_type = data.get('file_type', 'csv')
     
-    reporte_data = obtener_reporte(reporte_url, username)
+    reporte_data, created_at = obtener_reporte(reporte_url)
     if reporte_data:
+        # Formatear la fecha de creación
+        local_tz = pytz.timezone('America/Argentina/Buenos_Aires')
+        created_at_utc = created_at.replace(tzinfo=pytz.utc)  # Asignar la zona horaria UTC
+        created_at_local = created_at_utc.astimezone(local_tz)  # Convertir a la zona horaria local
+        timestamp = created_at_local.strftime('%d-%m-%Y_%H-%M')
+
         if file_type == 'xlsx':
+            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.xlsx'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.xlsx'
         elif file_type == 'json':
-            # Assuming reporte_data is already in JSON format
+            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.json'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'application/json'
-            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.json'
         elif file_type == 'html':
-            # Assuming reporte_data is in HTML format
+            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.html'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/html'
-            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.html'
         elif file_type == 'csv':
-            # Assuming reporte_data is in CSV format
+            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.csv'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
-            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.csv'
         else:
             # Default to CSV if the file_type is unknown
+            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.csv'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
-            response.headers['Content-Disposition'] = 'attachment; filename=reporte_usuarios_por_asignacion_para_gestores.csv'
+
+        # Agrega el encabezado de Content-Disposition con el nombre del archivo
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
         return response, 200
     else:
         return jsonify({"error": "No se encontró el reporte"}), 404
-
-
 
 
 
