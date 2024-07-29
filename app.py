@@ -7,9 +7,16 @@ from admin_bp import admin_bp                       # Acá importamos rutas admi
 from public_bp import public_bp                     # Acá importamos rutas public
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS
+from extensions import init_extensions
 
 app = Flask(__name__)
+
+# Inicializa los extensiones
+init_extensions(app)
+
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+
 
 # ENCRIPTACION JWT y BCRYPT-------
 

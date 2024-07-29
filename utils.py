@@ -182,6 +182,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
             db.session.add(report)
             db.session.commit()
             print("Reporte nuevo guardado en la base de datos.")
+            return
 
     except requests.RequestException as e:
         print(f"Error en la recuperación del reporte desde el campus. El siguiente error se recuperó: {e}")
