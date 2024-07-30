@@ -25,6 +25,8 @@ def check_api_key(api_key):
 
 @admin_bp.before_request
 def authorize():
+    if request.path == '/':
+        return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
         return jsonify({'message': 'Unauthorized'}), 401
