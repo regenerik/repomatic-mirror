@@ -25,7 +25,7 @@ def check_api_key(api_key):
 
 @admin_bp.before_request
 def authorize():
-    if request.path == '/':
+    if request.path == '/' or request.path == '/reportes_disponibles':
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -132,14 +132,14 @@ def run_exportar_y_guardar_reporte(session, sesskey, username, url):
 def descargar_reporte():
     print("Funciona la ruta de descarga")
     data = request.get_json()
-    if 'reporte_url' not in data or 'username' not in data:
+    if 'reporte_url' not in data:
         return jsonify({"error": "Falta reporte_id, username o tipo de archivo en el cuerpo JSON"}), 400
     
     reporte_url = data['reporte_url']
-    username = data['username']
     file_type = data.get('file_type', 'csv')
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
+
     # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
     # Mapeo de vocales acentuadas a vocales sin acento
     accent_mapping = {
