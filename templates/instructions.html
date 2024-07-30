@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -8,13 +8,14 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            color: #333;
         }
 
-        h1 {
+        h1, h2, h3 {
             color: #2e6da4;
         }
 
-        p {
+        p, ol {
             margin-bottom: 10px;
         }
 
@@ -24,29 +25,118 @@
             padding: 2px 5px;
             border-radius: 3px;
         }
+
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+
+        .note {
+            background-color: #dff0d8;
+            border: 1px solid #d0e9c6;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .warning {
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .example {
+            background-color: #d9edf7;
+            border: 1px solid #bce8f1;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 
 <body>
     <div>
+        <h1>Instrucciones de Uso de la API Repomatic</h1>
 
-        <h1>Instrucciones de Uso de la API</h1>
-        <p>Para utilizar esta API, sigue estos pasos:</p>
-        <ol>
-            <li>Envía una solicitud POST a la siguiente URL: <code>https://repomatic.onrender.com/usuarios_por_asignacion_para_gestores</code>.
-            </li>
-            <li>Este pedido demora al rededor de 4 minutos y el peso de su respuesta es aprox 4,16 Mb. El pedido post lleva en el body ... Ej:
-            </li>
-        </ol>
+        <p>La API Repomatic está diseñada para proporcionar de manera práctica los reportes necesarios desde <a href="https://www.campuscomercialypf.com/" target="_blank">Campus Comercial YPF</a>. Es importante destacar que el servicio de esta API no retiene en ningún momento información sensible relacionada con la web mencionada.</p>
+
+        <div class="note">
+            <p>Para consumir cualquiera de los recursos de esta API, es necesario contar con una <strong>API.KEY</strong> que puede ser facilitada por un administrador.</p>
+        </div>
+
+        <h2>Rutas Disponibles</h2>
+
+        <h3>Documentación</h3>
+        <p><strong>(GET)</strong> <a href="https://repomatic.onrender.com/" target="_blank">https://repomatic.onrender.com/</a></p>
+        <p>Esta ruta te llevará a esta documentación.</p>
+
+        <h3>Obtener Lista de Reportes Disponibles</h3>
+        <p><strong>(GET)</strong> <a href="https://repomatic.onrender.com/reportes_disponibles" target="_blank">https://repomatic.onrender.com/reportes_disponibles</a></p>
+        <p>Headers: <code>Authorization: XXXXXX</code> (pregunta a un administrador)</p>
+        <p>Esta ruta proporciona la lista de reportes actualmente guardados en la base de datos. Ejemplo de respuesta:</p>
         <pre>
-    {
-        "username": "tu usuario campus",
-        "password": "tu password campus"
-    }
+{
+    "lista_reportes": [
+        {
+            "created_at": "30/07/2024 15:10:33",
+            "elapsed_time": "0:00:08.804579",
+            "id": 1,
+            "report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133",
+            "size_megabytes": 10.562853813171387,
+            "user_id": 34490395
+        }
+    ],
+    "result": "ok"
+}
         </pre>
+        <p>Status Code: 200</p>
+
+        <h3>Recuperar Reporte de Campus a Servidor</h3>
+        <p><strong>(POST)</strong> <a href="https://repomatic.onrender.com/recuperar_reporte" target="_blank">https://repomatic.onrender.com/recuperar_reporte</a></p>
+        <p>Headers: <code>Authorization: XXXXXX</code> (pregunta a un administrador)</p>
+        <p>Body (raw JSON):</p>
+        <pre>
+{
+    "username": "123456789", // Correspondiente al login en Campus
+    "password": "**********", // Correspondiente al login en Campus
+    "url": "https://url.de.reporte.en.cuestion"
+}
+        </pre>
+        <p>Respuesta:</p>
+        <pre>
+{
+    "message": "El proceso de recuperación del reporte ha comenzado"
+}
+        </pre>
+        <p>Status Code: 200</p>
+
+        <h3>Descargar Reporte con URL</h3>
+        <p><strong>(POST)</strong> <a href="https://repomatic.onrender.com/obtener_reporte" target="_blank">https://repomatic.onrender.com/obtener_reporte</a></p>
+        <p>Body (raw JSON):</p>
+        <pre>
+{
+    "username": "123456789", // Correspondiente al login en Campus
+    "reporte_url": "url_de_reporte_que_quiero_descargar",
+    "file_type": "csv" // Puedes descargarlo en "json", "html", "xlsx", "csv". Si no se incluye, la descarga será por defecto en "csv".
+}
+        </pre>
+        <p>La respuesta es el archivo elegido, conteniendo en su nombre el título del reporte, la fecha y la hora de creación del mismo en la base de datos (el tiempo no indica el momento de la descarga). Ejemplo de nombre de archivo:</p>
+        <pre>
+USUARIOS_POR_ASIGNACION_PARA_GESTORES_30-07-2024_15-03.csv
+        </pre>
+        <p>Además, en los headers de la respuesta, en <code>Content-Disposition</code>, también puedes acceder al nombre del archivo. Status Code: 200</p>
+
+        <div class="warning">
+            <p>Esta documentación puede variar ya que el producto está en etapa de desarrollo. Te pedimos disculpas por cualquier inconsistencia o demora.</p>
+        </div>
+
+        <p>Creado por David Ezequiel Cunha Quinteros - 2024 - Repomatic para Campus YPF</p>
     </div>
-    <br>
-    <p>¡Gracias por utilizar la API! - Creado 08/07/24 by Regenerik</p>
 </body>
 
 </html>
