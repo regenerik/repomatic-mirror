@@ -9,6 +9,7 @@ import os                                                        # Para datos .e
 from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
 import pytz
+import re
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -98,7 +99,7 @@ def exportar_reporte_v2():
 @admin_bp.route('/recuperar_reporte', methods=['POST'])
 def exportar_y_guardar_reporte_ruta():
     from extensions import executor
-    print("funciona la ruta")
+    print("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
     data = request.get_json()
     if 'username' not in data or 'password' not in data or 'url' not in data:
         return jsonify({"error": "Falta username, password, url o user_id en el cuerpo JSON"}), 400
@@ -136,7 +137,32 @@ def descargar_reporte():
     username = data['username']
     file_type = data.get('file_type', 'csv')
     
-    reporte_data, created_at = obtener_reporte(reporte_url)
+    reporte_data, created_at, title = obtener_reporte(reporte_url)
+    # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
+    # Mapeo de vocales acentuadas a vocales sin acento
+    accent_mapping = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'à': 'a', 'è': 'e', 'ì': 'i', 'ò': 'o', 'ù': 'u',
+        'â': 'a', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u',
+        'ã': 'a', 'õ': 'o', 'ä': 'a', 'ë': 'e', 'ï': 'i',
+        'ö': 'o', 'ü': 'u', 'ç': 'c',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'À': 'A', 'È': 'E', 'Ì': 'I', 'Ò': 'O', 'Ù': 'U',
+        'Â': 'A', 'Ê': 'E', 'Î': 'I', 'Ô': 'O', 'Û': 'U',
+        'Ã': 'A', 'Õ': 'O', 'Ä': 'A', 'Ë': 'E', 'Ï': 'I',
+        'Ö': 'O', 'Ü': 'U', 'Ç': 'C'
+    }
+
+    # Reemplazar acentos
+    title = ''.join(accent_mapping.get(c, c) for c in title)
+
+    # Reemplazar caracteres no válidos en nombres de archivos
+    safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
+
+    # Reemplazar espacios y otros espacios en blanco por '_'
+    safe_title = re.sub(r'\s+', '_', safe_title)
+    # ------------------------------------------------------------------------------------------------------------------------
+
     if reporte_data:
         # Formatear la fecha de creación
         local_tz = pytz.timezone('America/Argentina/Buenos_Aires')
@@ -145,24 +171,24 @@ def descargar_reporte():
         timestamp = created_at_local.strftime('%d-%m-%Y_%H-%M')
 
         if file_type == 'xlsx':
-            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.xlsx'
+            filename = f'{safe_title}_{timestamp}.xlsx'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         elif file_type == 'json':
-            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.json'
+            filename = f'{safe_title}_{timestamp}.json'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'application/json'
         elif file_type == 'html':
-            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.html'
+            filename = f'{safe_title}_{timestamp}.html'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/html'
         elif file_type == 'csv':
-            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.csv'
+            filename = f'{safe_title}_{timestamp}.csv'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
         else:
             # Default to CSV if the file_type is unknown
-            filename = f'reporte_usuarios_por_asignacion_para_gestores_{timestamp}.csv'
+            filename = f'{safe_title}_{timestamp}.csv'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
 

@@ -37,7 +37,7 @@ def compilar_reportes_existentes():
 
 def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     session = requests.Session()
-    print("Utils iniciando. Entrando y recuperando token inicial...")
+    print("2 - Función Util iniciar_sesion_y_obtener_sesskey iniciando...")
 
     # Paso 1: Obtener el logintoken
     login_page_url = "https://www.campuscomercialypf.com/login/index.php"
@@ -46,7 +46,7 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
         login_page_soup = BeautifulSoup(login_page_response.text, 'html.parser')
         logintoken_input = login_page_soup.find('input', {'name': 'logintoken'})
         logintoken = logintoken_input['value'] if logintoken_input else None
-        print("Token recuperado. Iniciando login")
+        print("3 - Token recuperado. Iniciando log-in...")
     except requests.exceptions.RequestException as e:
         print(f"Error al obtener la página de login: {e}")
         print("Si llegaste a este error, puede ser que la red esté caída o la URL del campus haya cambiado.")
@@ -66,7 +66,7 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     login_response = session.post(login_page_url, data=login_payload, headers=login_headers)
 
     if login_response.status_code == 200 and "TotaraSession" in session.cookies:
-        print("Inicio de sesión exitoso")
+        print("4 - Inicio de sesión exitoso. Comenzando a capturar el sesskey...")
     else:
         print("Error en el inicio de sesión")
         return None, None
@@ -81,7 +81,7 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
         sesskey_url = sesskey_link['href']
         sesskey = re.search(r'sesskey=([a-zA-Z0-9]+)', sesskey_url)
         if sesskey:
-            print("Sesskey recuperado.")
+            print("5 - Sesskey recuperado.")
             return session, sesskey.group(1)
     print("Error: No se pudo obtener el sesskey")
     return None, None
@@ -131,7 +131,7 @@ def exportar_reporte_json(username, password, report_url):
 def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
     hora_inicio = datetime.now()
-    print(f"Recuperando reporte desde la URL... Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
+    print(f"6 - Recuperando reporte desde la URL. Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
     # Paso 4: Traer los datos en excel
     # export_payload = {
@@ -154,40 +154,84 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         "Referer": report_url
     }
     try:
-            export_response = session.post(report_url, data=export_payload, headers=export_headers)
-            export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-            print("ESTE ES EL EXPORT RESPONSE: ", export_response)
-            
+        # Captura el HTML del report_url
+        html_response = session.get(report_url)
+        html_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-            # Captura la hora de finalización
-            hora_descarga_finalizada = datetime.now()
+        # # Imprime una parte del HTML para depuración
+        html_content = html_response.text
+        # print(html_content[:2000])  # Imprime solo los primeros 2000 caracteres para no saturar la consola
 
-            # Calcula el intervalo de tiempo
-            elapsed_time = hora_descarga_finalizada - hora_inicio
-            elapsed_time_str = str(elapsed_time)
-            print(f"CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
+        # Pre fabrica variable "titulo" por si no lo encuentra
+        titulo = "reporte_solicitado"
 
-            print("Ahora guardando en la base de datos...")
+        # Analiza el HTML con BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
 
-            # Pasamos el excel a binario y rescatamos el peso
-            csv_data = BytesIO(export_response.content)
+        # Busca todos los <h2> en el HTML
+        h2_tags = soup.find_all('h2')
+        for h2_tag in h2_tags:
+            # Busca todos los <span> dentro del <h2>
+            span_tags = h2_tag.find_all('span')
+            for span_tag in span_tags:
+                # Captura el texto del <span>
+                span_text = span_tag.get_text(strip=True)
+                if span_text:
+                    # Aquí puedes implementar lógica adicional para verificar el texto
+                    # Por ejemplo, podrías verificar si contiene ciertas palabras clave
+                    print(f"7 - Texto encontrado en <span>: {span_text}")
+                    # Lista con los títulos posibles
+                    titulos_posibles = [
+                        "USUARIOS POR ASIGNACIÓN PARA GESTORES",
+                        "CURSADA+YPFRESPALDO",
+                        "Cursos con detalle",
+                        "VERIFICA USUARIOS PARA GESTORES",
+                        "Avance programas"
+                    ]
 
-            size_megabytes = (len(csv_data.getvalue())) / 1_048_576
+                    # Verificamos si span_text está en la lista de títulos posibles
+                    if span_text in titulos_posibles:
+                        titulo = span_text
+                        break
 
-            # Elimina registros previos en la tabla que corresponde
-            report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
-            if report_to_delete:
-                db.session.delete(report_to_delete)
-                db.session.commit()
-                print("Reporte previo eliminado >>> guardando el nuevo...")
+        print(f"8 - Comenzando la captura del archivo csv...")
 
-            # Instancia el nuevo registro a la tabla que corresponde y guarda en db
-            report = Reporte(user_id=username, report_url=report_url, data=csv_data.read(),size= size_megabytes, elapsed_time= elapsed_time_str)
-            db.session.add(report)
+        # AHORA LA CAPTURA DEL MISMÍSIMO ARCHIVO CSV
+        export_response = session.post(report_url, data=export_payload, headers=export_headers)
+        export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
+
+        print("9 - La respuesta de la captura es: ", export_response)
+        
+
+        # Captura la hora de finalización
+        hora_descarga_finalizada = datetime.now()
+
+        # Calcula el intervalo de tiempo
+        elapsed_time = hora_descarga_finalizada - hora_inicio
+        elapsed_time_str = str(elapsed_time)
+        print(f"10 - CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
+
+        print("11 - Ahora guardando en la base de datos...")
+
+        # Pasamos el csv a binario y rescatamos el peso
+        csv_data = BytesIO(export_response.content)
+
+        size_megabytes = (len(csv_data.getvalue())) / 1_048_576
+
+        # Elimina registros previos en la tabla que corresponde
+        report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
+        if report_to_delete:
+            db.session.delete(report_to_delete)
             db.session.commit()
-            print("Reporte nuevo guardado en la base de datos.")
-            return
+            print("12 - Reporte previo eliminado >>> guardando el nuevo...")
+
+        # Instancia el nuevo registro a la tabla que corresponde y guarda en db
+        report = Reporte(user_id=username, report_url=report_url, data=csv_data.read(),size= size_megabytes, elapsed_time= elapsed_time_str, title=titulo)
+        db.session.add(report)
+        db.session.commit()
+        print("13 - Reporte nuevo guardado en la base de datos. Fin de la ejecución.")
+        return
 
     except requests.RequestException as e:
         print(f"Error en la recuperación del reporte desde el campus. El siguiente error se recuperó: {e}")
@@ -203,7 +247,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 def obtener_reporte(reporte_url):
     report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
     if report:
-        return report.data, report.created_at
+        return report.data, report.created_at, report.title
     else:
-        return None, None
+        return None, None, None
 

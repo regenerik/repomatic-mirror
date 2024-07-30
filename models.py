@@ -15,5 +15,6 @@ class Reporte(db.Model):
     data = db.Column(db.LargeBinary, nullable=False)
     size = db.Column(db.Float, nullable=False)
     elapsed_time = db.Column(db.String(50), nullable=True)
+    title = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow) # revisar si .UTC va o si cambiamos a .utcnow
 
