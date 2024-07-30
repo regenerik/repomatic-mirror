@@ -47,7 +47,7 @@ def show_hello_world():
 @admin_bp.route('/reportes_disponibles', methods=['GET'])
 def reportes_disponibles():
     lista_reportes = compilar_reportes_existentes()
-    return jsonify({'lista_reportes': lista_reportes ,'cantidad_reportes':len(lista_reportes), 'result':'ok'}), 200
+    return jsonify({'lista_reportes': lista_reportes ,'total':len(lista_reportes), 'result':'ok'}), 200
 
 # Ruta para Obtener USUARIOS POR ASIGNACIÓN PARA GESTORES ( sin parámetros )
 @admin_bp.route('/usuarios_por_asignacion_para_gestores', methods=['POST'])
