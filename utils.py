@@ -212,13 +212,24 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         elapsed_time_str = str(elapsed_time)
         print(f"10 - CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
 
-        print("11 - Ahora guardando en la base de datos...")
+        
 
+        # Si es tabla "usuario por asignacion para gestores", toquetear:
+
+        if "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133" in report_url:
+            csv_data_raw = pd.read_csv(BytesIO(export_response.content))
+            csv_data_raw = csv_data_raw.loc[csv_data_raw['DNI'].str.isnumeric()]
+            csv_buffer = BytesIO()
+            csv_data_raw.to_csv(csv_buffer, index=False)
+            csv_data_raw_bytes = csv_buffer.getvalue()
+            csv_data = BytesIO(csv_data_raw_bytes)
+        else:
+            csv_data = BytesIO(export_response.content)
         # Pasamos el csv a binario y rescatamos el peso
-        csv_data = BytesIO(export_response.content)
+        # csv_data = BytesIO(export_response.content)
 
         size_megabytes = (len(csv_data.getvalue())) / 1_048_576
-
+        print("11 - Eliminando reporte anterior de DB...")
         # Elimina registros previos en la tabla que corresponde
         report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
         if report_to_delete:
