@@ -3,10 +3,17 @@ from datetime import datetime
 
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    dni = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer)
     name = db.Column(db.String(50))
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(255))
+    admin = db.Column(db.Boolean)
+
+class Permitido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    dni = db.Column(db.Integer, db.ForeignKey('user.id'))
+
 
 class Reporte(db.Model):
     id = db.Column(db.Integer, primary_key=True)

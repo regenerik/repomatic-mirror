@@ -24,6 +24,7 @@ def compilar_reportes_existentes():
             'id': reporte.id,
             'user_id': reporte.user_id,
             'report_url': reporte.report_url,
+            'title': reporte.title,
             'size_megabytes': reporte.size,
             'elapsed_time': reporte.elapsed_time,
             'created_at': created_at_local.strftime("%d/%m/%Y %H:%M:%S")
@@ -183,11 +184,11 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                     print(f"7 - Texto encontrado en <span>: {span_text}")
                     # Lista con los títulos posibles
                     titulos_posibles = [
-                        "USUARIOS POR ASIGNACIÓN PARA GESTORES",
+                        "USUARIOS POR ASIGNACION PARA GESTORES",
                         "CURSADA+YPFRESPALDO",
                         "Cursos con detalle",
                         "VERIFICA USUARIOS PARA GESTORES",
-                        "Avance programas"
+                        "AVANCE DE PROGRAMAS"
                     ]
 
                     # Verificamos si span_text está en la lista de títulos posibles

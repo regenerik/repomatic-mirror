@@ -25,7 +25,7 @@ def check_api_key(api_key):
 
 @admin_bp.before_request
 def authorize():
-    if request.path == '/' or request.path == '/reportes_disponibles':
+    if request.path == '/' or request.path == '/reportes_disponibles' or request.path == '/create_user' or request.path == '/login' or request.path == '/users':
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -141,36 +141,6 @@ def descargar_reporte():
     reporte_data, created_at, title = obtener_reporte(reporte_url)
 
     # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
-    # Mapeo de vocales acentuadas a vocales sin acento
-    accent_mapping = {
-        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
-        'à': 'a', 'è': 'e', 'ì': 'i', 'ò': 'o', 'ù': 'u',
-        'â': 'a', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u',
-        'ã': 'a', 'õ': 'o', 'ä': 'a', 'ë': 'e', 'ï': 'i',
-        'ö': 'o', 'ü': 'u', 'ç': 'c',
-        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
-        'À': 'A', 'È': 'E', 'Ì': 'I', 'Ò': 'O', 'Ù': 'U',
-        'Â': 'A', 'Ê': 'E', 'Î': 'I', 'Ô': 'O', 'Û': 'U',
-        'Ã': 'A', 'Õ': 'O', 'Ä': 'A', 'Ë': 'E', 'Ï': 'I',
-        'Ö': 'O', 'Ü': 'U', 'Ç': 'C'
-    }
-    def cargar_accent_mapping():
-        return {
-        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
-        'à': 'a', 'è': 'e', 'ì': 'i', 'ò': 'o', 'ù': 'u',
-        'â': 'a', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u',
-        'ã': 'a', 'õ': 'o', 'ä': 'a', 'ë': 'e', 'ï': 'i',
-        'ö': 'o', 'ü': 'u', 'ç': 'c',
-        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
-        'À': 'A', 'È': 'E', 'Ì': 'I', 'Ò': 'O', 'Ù': 'U',
-        'Â': 'A', 'Ê': 'E', 'Î': 'I', 'Ô': 'O', 'Û': 'U',
-        'Ã': 'A', 'Õ': 'O', 'Ä': 'A', 'Ë': 'E', 'Ï': 'I',
-        'Ö': 'O', 'Ü': 'U', 'Ç': 'C'
-        }
-    # Reemplazar acentos
-    if accent_mapping is None:
-        accent_mapping = cargar_accent_mapping()
-    title = ''.join(accent_mapping.get(c, c) for c in title)
 
     # Reemplazar caracteres no válidos en nombres de archivos
     safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
@@ -221,15 +191,23 @@ def descargar_reporte():
 
 
 # RUTA CREAR USUARIO
-@admin_bp.route('/users', methods=['POST'])
+@admin_bp.route('/create_user', methods=['POST'])
 def create_user():
     try:
         email = request.json.get('email')
         password = request.json.get('password')
         name = request.json.get('name')
+        dni = request.json.get('dni')
+        admin = None
+        # Después de crear el primer administrador y la consola de agregar y quitar admins borrar este pedazo:
 
-        if not email or not password or not name:
-            return jsonify({'error': 'Email, password and Name are required.'}), 400
+        if len(password) == 15:
+            admin = True
+        else:
+            admin = False
+        #-----------------------------------------------------------------------------------------------------
+        if not email or not password or not name or not dni:
+            return jsonify({'error': 'Email, password, dni and Name are required.'}), 400
 
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
@@ -239,7 +217,7 @@ def create_user():
 
 
         # Ensamblamos el usuario nuevo
-        new_user = User(email=email, password=password_hash, name=name)
+        new_user = User(email=email, password=password_hash, name=name , dni=dni, admin=admin)
 
         db.session.add(new_user)
         db.session.commit()
@@ -257,7 +235,7 @@ def create_user():
 
 
 #RUTA LOG-IN ( CON TOKEN DE RESPUESTA )
-@admin_bp.route('/token', methods=['POST'])
+@admin_bp.route('/login', methods=['POST'])
 def get_token():
     try:
         #  Primero chequeamos que por el body venga la info necesaria:
@@ -265,7 +243,7 @@ def get_token():
         password = request.json.get('password')
 
         if not email or not password:
-            return jsonify({'error': 'Email and password are required.'}), 400
+            return jsonify({'error': 'Email y password son requeridos.'}), 400
         
         # Buscamos al usuario con ese correo electronico ( si lo encuentra lo guarda ):
         login_user = User.query.filter_by(email=request.json['email']).one()
@@ -278,9 +256,9 @@ def get_token():
         if true_o_false:
             expires = timedelta(minutes=30)  # pueden ser "hours", "minutes", "days","seconds"
 
-            user_id = login_user.id       # recuperamos el id del usuario para crear el token...
-            access_token = create_access_token(identity=user_id, expires_delta=expires)   # creamos el token con tiempo vencimiento
-            return jsonify({ 'access_token':access_token}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
+            user_dni = login_user.dni       # recuperamos el id del usuario para crear el token...
+            access_token = create_access_token(identity=user_dni, expires_delta=expires)   # creamos el token con tiempo vencimiento
+            return jsonify({ 'access_token':access_token, 'name':login_user.name, 'admin':login_user.admin}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
 
         else:
             return {"Error":"Contraseña  incorrecta"}
@@ -299,10 +277,11 @@ def show_users():
         user_list = []
         for user in users:
             user_dict = {
-                'id': user.id,
-                'email': user.email
+                'dni': user.dni,
+                'email': user.email,
+                'name': user.name
             }
             user_list.append(user_dict)
-        return jsonify(user_list), 200
+        return jsonify({"lista_usuarios":user_list , 'cantidad':len(user_list)}), 200
     else:
         return {"Error": "Token inválido o vencido"}, 401
