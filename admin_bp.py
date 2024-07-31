@@ -139,7 +139,8 @@ def descargar_reporte():
     file_type = data.get('file_type', 'csv')
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
-
+    if title is None:
+        title = "reporte_obtenido"
     # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
 
     # Reemplazar caracteres no válidos en nombres de archivos
