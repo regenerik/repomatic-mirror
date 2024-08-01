@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Crear un logger global
 logger = logging.getLogger("my_app_logger")
+logger.propagate = False  # Desactiva la propagación al logger raíz
 
 # Verificar si ya hay handlers para evitar duplicados
 if not logger.handlers:
@@ -14,7 +15,7 @@ if not logger.handlers:
     stdout_handler.setLevel(logging.INFO)
     logger.addHandler(stdout_handler)
 
-    # Opcional: redirigir sys.stderr también si es necesario
-    stderr_handler = logging.StreamHandler(sys.stderr)
-    stderr_handler.setLevel(logging.ERROR)
-    logger.addHandler(stderr_handler)
+    # # Opcional: redirigir sys.stderr también si es necesario
+    # stderr_handler = logging.StreamHandler(sys.stderr)
+    # stderr_handler.setLevel(logging.ERROR)
+    # logger.addHandler(stderr_handler)
