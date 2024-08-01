@@ -6,6 +6,7 @@
 !.render-buildpacks.json
 
 # dependencies
+/instance
 /node_modules
 /.pnp
 .pnp.js

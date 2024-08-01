@@ -16,6 +16,7 @@ pandas = "*"
 openpyxl = "*"
 python-dotenv = "*"
 pytz = "*"
+waitress = "*"
 
 [dev-packages]
 
