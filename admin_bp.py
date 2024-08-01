@@ -11,6 +11,8 @@ from dotenv import load_dotenv                                   # Para datos .e
 load_dotenv()
 import pytz
 import re
+import zipfile
+import io
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -140,7 +142,7 @@ def descargar_reporte():
 
     reporte_url = data['reporte_url']
     file_type = data.get('file_type', 'csv')
-
+    zip_option = data.get('zip', 'no')
     logger.info(f"2 - Url requerida para descarga: {reporte_url}")
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
@@ -162,30 +164,40 @@ def descargar_reporte():
         created_at_local = created_at_utc.astimezone(local_tz)  # Convertir a la zona horaria local
         timestamp = created_at_local.strftime('%d-%m-%Y_%H-%M')
 
+        # Determinar el nombre del archivo y tipo de contenido
         if file_type == 'xlsx':
             filename = f'{safe_title}_{timestamp}.xlsx'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         elif file_type == 'json':
             filename = f'{safe_title}_{timestamp}.json'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'application/json'
+            content_type = 'application/json'
         elif file_type == 'html':
             filename = f'{safe_title}_{timestamp}.html'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'text/html'
+            content_type = 'text/html'
         elif file_type == 'csv':
             filename = f'{safe_title}_{timestamp}.csv'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'text/csv'
+            content_type = 'text/csv'
         else:
             # Default to CSV if the file_type is unknown
             filename = f'{safe_title}_{timestamp}.csv'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'text/csv'
+            content_type = 'text/csv'
 
-        # Agrega el encabezado de Content-Disposition con el nombre del archivo
-        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        # Si se requiere zip, comprimir el archivo
+        if zip_option.lower() == 'yes':
+            zip_filename = f'{filename}.zip'
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr(filename, reporte_data)
+
+            zip_buffer.seek(0)
+            response = make_response(zip_buffer.read())
+            response.headers['Content-Type'] = 'application/zip'
+            response.headers['Content-Disposition'] = f'attachment; filename={zip_filename}'
+        else:
+            # Si no se requiere zip, simplemente devolver el archivo original
+            response = make_response(reporte_data)
+            response.headers['Content-Type'] = content_type
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
         return response, 200
     else:
