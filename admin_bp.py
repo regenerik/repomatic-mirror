@@ -102,11 +102,12 @@ def exportar_reporte_v2():
 @admin_bp.route('/recuperar_reporte', methods=['POST'])
 def exportar_y_guardar_reporte_ruta():
     from extensions import executor
-    logger.info("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
+    logger.info("POST > /recuperar_reporte comenzando...")
+
     data = request.get_json()
     if 'username' not in data or 'password' not in data or 'url' not in data:
         return jsonify({"error": "Falta username, password, url o user_id en el cuerpo JSON"}), 400
-    
+    logger.info(f"1 - Url requerida: {data['url']}.")
     username = data['username']
     password = data['password']
     url = data['url']
@@ -131,6 +132,7 @@ def run_exportar_y_guardar_reporte(session, sesskey, username, url):
 
 @admin_bp.route('/obtener_reporte', methods=['POST'])
 def descargar_reporte():
+    logger.info("POST > /obtener_reporte comenzando...")
     logger.info("1 - Funciona la ruta de descarga")
     data = request.get_json()
     if 'reporte_url' not in data:
@@ -139,7 +141,7 @@ def descargar_reporte():
     reporte_url = data['reporte_url']
     file_type = data.get('file_type', 'csv')
 
-    logger.info("2 - Url recuperada - file_type indistinto")
+    logger.info(f"2 - Url requerida para descarga: {reporte_url}")
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
     if title is None:

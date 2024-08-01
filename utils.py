@@ -259,9 +259,13 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
 def obtener_reporte(reporte_url):
     report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
+
     if report:
+        created_at_utc = report.created_at.replace(tzinfo=pytz.utc)
+        created_at_local = created_at_utc.astimezone(tz)
         logger.info("3 - Reporte encontrado en db")
-        return report.data, report.created_at, report.title
+        created_at_bsas = created_at_local.strftime("%d/%m/%Y %H:%M:%S")
+        return report.data, created_at_bsas, report.title
     else:
         return None, None, None
 
