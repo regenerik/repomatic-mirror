@@ -103,7 +103,6 @@ def exportar_reporte_v2():
 def exportar_y_guardar_reporte_ruta():
     from extensions import executor
     logger.info("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
-    print("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
     data = request.get_json()
     if 'username' not in data or 'password' not in data or 'url' not in data:
         return jsonify({"error": "Falta username, password, url o user_id en el cuerpo JSON"}), 400
@@ -115,7 +114,7 @@ def exportar_y_guardar_reporte_ruta():
     # Llamando al inicio de session por separado y recuperando resultados...
     session, sesskey = iniciar_sesion_y_obtener_sesskey(username, password, url)
     if not session or not sesskey:
-        print("Error al iniciar sesión o al obtener el sesskey.")
+        logger.info("Error al iniciar sesión o al obtener el sesskey.")
         return jsonify({"error": "Error al iniciar sesión o al obtener el sesskey"}), 500
     
 # Lanzar la función de exportar y guardar reporte en un job separado
@@ -132,26 +131,28 @@ def run_exportar_y_guardar_reporte(session, sesskey, username, url):
 
 @admin_bp.route('/obtener_reporte', methods=['POST'])
 def descargar_reporte():
-    print("Funciona la ruta de descarga")
+    logger.info("1 - Funciona la ruta de descarga")
     data = request.get_json()
     if 'reporte_url' not in data:
         return jsonify({"error": "Falta reporte_id, username o tipo de archivo en el cuerpo JSON"}), 400
-    
+
     reporte_url = data['reporte_url']
     file_type = data.get('file_type', 'csv')
+
+    logger.info("2 - Url recuperada - file_type indistinto")
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
     if title is None:
         title = "reporte_obtenido"
     # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
-
+    logger.info("4 - Limpiando nombre de caracteres especiales para guardado...")
     # Reemplazar caracteres no válidos en nombres de archivos
     safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
 
     # Reemplazar espacios y otros espacios en blanco por '_'
     safe_title = re.sub(r'\s+', '_', safe_title)
     # ------------------------------------------------------------------------------------------------------------------------
-
+    logger.info("5 - Creando respuesta con archivo y enviando. Fin de la ejecución.")
     if reporte_data:
         # Formatear la fecha de creación
         local_tz = pytz.timezone('America/Argentina/Buenos_Aires')
@@ -186,6 +187,7 @@ def descargar_reporte():
 
         return response, 200
     else:
+        logger.info("El util>obtener_reporte no devolvió la data...Respuesta de server 404")
         return jsonify({"error": "No se encontró el reporte"}), 404
 
 

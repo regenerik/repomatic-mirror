@@ -8,6 +8,7 @@ from models import Reporte
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 import pytz
+from logging_config import logger
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
 
@@ -38,7 +39,7 @@ def compilar_reportes_existentes():
 
 def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     session = requests.Session()
-    print("2 - Función Util iniciar_sesion_y_obtener_sesskey iniciando...")
+    logger.info("2 - Función Util iniciar_sesion_y_obtener_sesskey iniciando...")
 
     # Paso 1: Obtener el logintoken
     login_page_url = "https://www.campuscomercialypf.com/login/index.php"
@@ -47,10 +48,10 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
         login_page_soup = BeautifulSoup(login_page_response.text, 'html.parser')
         logintoken_input = login_page_soup.find('input', {'name': 'logintoken'})
         logintoken = logintoken_input['value'] if logintoken_input else None
-        print("3 - Token recuperado. Iniciando log-in...")
+        logger.info("3 - Token recuperado. Iniciando log-in...")
     except requests.exceptions.RequestException as e:
-        print(f"Error al obtener la página de login: {e}")
-        print("Si llegaste a este error, puede ser que la red esté caída o la URL del campus haya cambiado.")
+        logger.info(f"Error al obtener la página de login: {e}")
+        logger.info("Si llegaste a este error, puede ser que la red esté caída o la URL del campus haya cambiado.")
         return None, None
 
     # Paso 2: Realizar el inicio de sesión
@@ -67,9 +68,9 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     login_response = session.post(login_page_url, data=login_payload, headers=login_headers)
 
     if login_response.status_code == 200 and "TotaraSession" in session.cookies:
-        print("4 - Inicio de sesión exitoso. Comenzando a capturar el sesskey...")
+        logger.info("4 - Inicio de sesión exitoso. Comenzando a capturar el sesskey...")
     else:
-        print("Error en el inicio de sesión")
+        logger.info("Error en el inicio de sesión")
         return None, None
 
     # Paso 3: Obtener el sesskey dinámicamente desde la página
@@ -82,9 +83,9 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
         sesskey_url = sesskey_link['href']
         sesskey = re.search(r'sesskey=([a-zA-Z0-9]+)', sesskey_url)
         if sesskey:
-            print("5 - Sesskey recuperado.")
+            logger.info("5 - Sesskey recuperado.")
             return session, sesskey.group(1)
-    print("Error: No se pudo obtener el sesskey")
+    logger.info("Error: No se pudo obtener el sesskey")
     return None, None
 
 
@@ -93,10 +94,10 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
 def exportar_reporte_json(username, password, report_url):
     session, sesskey = iniciar_sesion_y_obtener_sesskey(username, password, report_url)
     if not session or not sesskey:
-        print("Error al iniciar sesión o al obtener el sesskey.")
+        logger.info("Error al iniciar sesión o al obtener el sesskey.")
         return None
     
-    print("Recuperando reporte desde la URL...")
+    logger.info("Recuperando reporte desde la URL...")
 
     # Paso 4: Traer los datos en excel
     export_payload = {
@@ -111,20 +112,20 @@ def exportar_reporte_json(username, password, report_url):
     }
 
     export_response = session.post(report_url, data=export_payload, headers=export_headers)
-    print("ESTE ES EL EXPORT RESPONSE: ", export_response)
+    logger.info("ESTE ES EL EXPORT RESPONSE: ", export_response)
 
     if export_response.status_code == 200:
-        print("Excel recuperado. Transformando a json...")
+        logger.info("Excel recuperado. Transformando a json...")
 
         # Leer el archivo Excel y convertir a JSON
         excel_data = BytesIO(export_response.content)
         df = pd.read_excel(excel_data, engine='openpyxl')
         json_data = df.to_json(orient='records')  # Convertir DataFrame a JSON
-        print("Enviando json de utils a la ruta...")
+        logger.info("Enviando json de utils a la ruta...")
         return json_data
 
     else:
-        print("Error en la exportación")
+        logger.info("Error en la exportación")
         return None
 
 # -----------------------------------UTILS PARA LLAMADA MULTIPLE------------------------------------
@@ -132,7 +133,7 @@ def exportar_reporte_json(username, password, report_url):
 def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
     hora_inicio = datetime.now()
-    print(f"6 - Recuperando reporte desde la URL. Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
+    logger.info(f"6 - Recuperando reporte desde la URL. Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
     # Paso 4: Traer los datos en excel
     # export_payload = {
@@ -162,7 +163,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
         # # Imprime una parte del HTML para depuración
         html_content = html_response.text
-        # print(html_content[:2000])  # Imprime solo los primeros 2000 caracteres para no saturar la consola
+
 
         # Pre fabrica variable "titulo" por si no lo encuentra
         titulo = "reporte_solicitado"
@@ -181,7 +182,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                 if span_text:
                     # Aquí puedes implementar lógica adicional para verificar el texto
                     # Por ejemplo, podrías verificar si contiene ciertas palabras clave
-                    print(f"7 - Texto encontrado en <span>: {span_text}")
+                    logger.info(f"7 - Texto encontrado en <span>: {span_text}")
                     # Lista con los títulos posibles
                     titulos_posibles = [
                         "USUARIOS POR ASIGNACION PARA GESTORES",
@@ -196,13 +197,13 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                         titulo = span_text
                         break
 
-        print(f"8 - Comenzando la captura del archivo csv...")
+        logger.info(f"8 - Comenzando la captura del archivo csv...")
 
         # AHORA LA CAPTURA DEL MISMÍSIMO ARCHIVO CSV
         export_response = session.post(report_url, data=export_payload, headers=export_headers)
         export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-        print("9 - La respuesta de la captura es: ", export_response)
+        logger.info("9 - La respuesta de la captura es: ", export_response)
         
 
         # Captura la hora de finalización
@@ -211,7 +212,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         # Calcula el intervalo de tiempo
         elapsed_time = hora_descarga_finalizada - hora_inicio
         elapsed_time_str = str(elapsed_time)
-        print(f"10 - CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
+        logger.info(f"10 - CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
 
         
 
@@ -230,35 +231,36 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         # csv_data = BytesIO(export_response.content)
 
         size_megabytes = (len(csv_data.getvalue())) / 1_048_576
-        print("11 - Eliminando reporte anterior de DB...")
+        logger.info("11 - Eliminando reporte anterior de DB...")
         # Elimina registros previos en la tabla que corresponde
         report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
         if report_to_delete:
             db.session.delete(report_to_delete)
             db.session.commit()
-            print("12 - Reporte previo eliminado >>> guardando el nuevo...")
+            logger.info("12 - Reporte previo eliminado >>> guardando el nuevo...")
 
         # Instancia el nuevo registro a la tabla que corresponde y guarda en db
         report = Reporte(user_id=username, report_url=report_url, data=csv_data.read(),size= size_megabytes, elapsed_time= elapsed_time_str, title=titulo)
         db.session.add(report)
         db.session.commit()
-        print("13 - Reporte nuevo guardado en la base de datos. Fin de la ejecución.")
+        logger.info("13 - Reporte nuevo guardado en la base de datos. Fin de la ejecución.")
         return
 
     except requests.RequestException as e:
-        print(f"Error en la recuperación del reporte desde el campus. El siguiente error se recuperó: {e}")
+        logger.info(f"Error en la recuperación del reporte desde el campus. El siguiente error se recuperó: {e}")
 
     except SQLAlchemyError as e:
-        print(f"Error en la base de datos: {e}")
+        logger.info(f"Error en la base de datos: {e}")
 
     except Exception as e:
-        print(f"Error inesperado: {e}")
+        logger.info(f"Error inesperado: {e}")
 
 
 
 def obtener_reporte(reporte_url):
     report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
     if report:
+        logger.info("3 - Reporte encontrado en db")
         return report.data, report.created_at, report.title
     else:
         return None, None, None
