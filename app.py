@@ -1,3 +1,5 @@
+import logging #  Mostrar logs en render.com
+import sys # #  Mostrar logs en render.com
 import os # para saber la ruta absoluta de la db si no la encontramos
 from flask_bcrypt import Bcrypt  # para encriptar y comparar
 from flask import Flask, request, jsonify # Para endpoints
@@ -6,8 +8,9 @@ from flask_jwt_extended import  JWTManager, create_access_token, jwt_required, g
 from admin_bp import admin_bp                       # Acá importamos rutas admin
 from public_bp import public_bp                     # Acá importamos rutas public
 from database import db                             # Acá importamos la base de datos inicializada
-from flask_cors import CORS
-from extensions import init_extensions
+from flask_cors import CORS                         # Permisos de consumo
+from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
+
 
 app = Flask(__name__)
 
@@ -16,7 +19,12 @@ init_extensions(app)
 
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-
+# Configurá el logging básico // Mostrar logs en render.com-----------------------------
+logging.basicConfig(level=logging.INFO)
+# Redirigí stdout y stderr para que `print` vaya a los logs
+sys.stdout = sys.stderr = logging.StreamHandler(sys.stdout)
+logging.getLogger().addHandler(logging.StreamHandler())
+#---------------------------------------------------------------------------------------
 
 # ENCRIPTACION JWT y BCRYPT-------
 
