@@ -5,6 +5,7 @@ from models import User                                          # importar tabl
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
 from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from app import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
@@ -101,6 +102,7 @@ def exportar_reporte_v2():
 @admin_bp.route('/recuperar_reporte', methods=['POST'])
 def exportar_y_guardar_reporte_ruta():
     from extensions import executor
+    logger.info("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
     print("1 - Ruta de pedido re recuperación desde campus a servidor funcionando OK.")
     data = request.get_json()
     if 'username' not in data or 'password' not in data or 'url' not in data:

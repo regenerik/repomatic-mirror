@@ -20,10 +20,16 @@ init_extensions(app)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # Configurá el logging básico // Mostrar logs en render.com-----------------------------
+# Configuración básica del logger
 logging.basicConfig(level=logging.INFO)
-# Redirigí stdout y stderr para que `print` vaya a los logs
-sys.stdout = sys.stderr = logging.StreamHandler(sys.stdout)
-logging.getLogger().addHandler(logging.StreamHandler())
+
+# Crear un logger
+logger = logging.getLogger()
+
+# Crear un manejador de salida que redirige sys.stdout (prints)
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+logger.addHandler(stdout_handler)
 #---------------------------------------------------------------------------------------
 
 # ENCRIPTACION JWT y BCRYPT-------
