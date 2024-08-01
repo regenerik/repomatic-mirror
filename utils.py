@@ -203,7 +203,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         export_response = session.post(report_url, data=export_payload, headers=export_headers)
         export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-        logger.info("9 - La respuesta de la captura es: ", export_response)
+        logger.info(f"9 - La respuesta de la captura es: {export_response}")
         
 
         # Captura la hora de finalización
