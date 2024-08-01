@@ -1,5 +1,3 @@
-import logging #  Mostrar logs en render.com
-import sys # #  Mostrar logs en render.com
 import os # para saber la ruta absoluta de la db si no la encontramos
 from flask_bcrypt import Bcrypt  # para encriptar y comparar
 from flask import Flask, request, jsonify # Para endpoints
@@ -18,19 +16,6 @@ app = Flask(__name__)
 init_extensions(app)
 
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-
-# Configurá el logging básico // Mostrar logs en render.com-----------------------------
-# Configuración básica del logger
-logging.basicConfig(level=logging.INFO)
-
-# Crear un logger
-logger = logging.getLogger()
-
-# Crear un manejador de salida que redirige sys.stdout (prints)
-stdout_handler = logging.StreamHandler(sys.stdout)
-stdout_handler.setLevel(logging.INFO)
-logger.addHandler(stdout_handler)
-#---------------------------------------------------------------------------------------
 
 # ENCRIPTACION JWT y BCRYPT-------
 
