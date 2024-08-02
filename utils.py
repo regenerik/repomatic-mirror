@@ -161,7 +161,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         html_response = session.get(report_url)
         html_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
 
-        # # Imprime una parte del HTML para depuración
+        # # Captura HTML para depuración
         html_content = html_response.text
 
 
@@ -216,19 +216,19 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
         
 
-        # Si es tabla "usuario por asignacion para gestores", toquetear:
+        # Si es tabla "usuario por asignacion para gestores", toquetear ( en test de falla ):
 
-        if "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133" in report_url:
-            csv_data_raw = pd.read_csv(BytesIO(export_response.content))
-            csv_data_raw = csv_data_raw.loc[csv_data_raw['DNI'].str.isnumeric()]
-            csv_buffer = BytesIO()
-            csv_data_raw.to_csv(csv_buffer, index=False)
-            csv_data_raw_bytes = csv_buffer.getvalue()
-            csv_data = BytesIO(csv_data_raw_bytes)
-        else:
-            csv_data = BytesIO(export_response.content)
+        # if "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133" in report_url:
+        #     csv_data_raw = pd.read_csv(BytesIO(export_response.content))
+        #     csv_data_raw = csv_data_raw.loc[csv_data_raw['DNI'].str.isnumeric()]
+        #     csv_buffer = BytesIO()
+        #     csv_data_raw.to_csv(csv_buffer, index=False)
+        #     csv_data_raw_bytes = csv_buffer.getvalue()
+        #     csv_data = BytesIO(csv_data_raw_bytes)
+        # else:
+        #     csv_data = BytesIO(export_response.content)
         # Pasamos el csv a binario y rescatamos el peso
-        # csv_data = BytesIO(export_response.content)
+        csv_data = BytesIO(export_response.content)
 
         size_megabytes = (len(csv_data.getvalue())) / 1_048_576
         logger.info("11 - Eliminando reporte anterior de DB...")
