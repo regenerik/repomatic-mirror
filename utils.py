@@ -189,7 +189,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                         "CURSADA+YPFRESPALDO",
                         "Cursos con detalle",
                         "VERIFICA USUARIOS PARA GESTORES",
-                        "AVANCE DE PROGRAMAS"
+                        "AVANCE DE PROGRAMAS PBI",
                     ]
 
                     # Verificamos si span_text está en la lista de títulos posibles
