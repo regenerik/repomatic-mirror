@@ -27,7 +27,9 @@ def check_api_key(api_key):
 
 @admin_bp.before_request
 def authorize():
-    if request.path == '/' or request.path == '/reportes_disponibles' or request.path == '/create_user' or request.path == '/login' or request.path == '/users':
+    if request.method == 'OPTIONS':
+        return
+    if request.path in ['/', '/reportes_disponibles', '/create_user', '/login', '/users']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -230,7 +232,6 @@ def create_user():
         db.session.commit()
 
         good_to_share_to_user = {
-            'id': new_user.id,
             'name':new_user.name,
             'email':new_user.email
         }
@@ -265,7 +266,7 @@ def get_token():
 
             user_dni = login_user.dni       # recuperamos el id del usuario para crear el token...
             access_token = create_access_token(identity=user_dni, expires_delta=expires)   # creamos el token con tiempo vencimiento
-            return jsonify({ 'access_token':access_token, 'name':login_user.name, 'admin':login_user.admin}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
+            return jsonify({ 'access_token':access_token, 'name':login_user.name, 'admin':login_user.admin, 'dni':user_dni}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
 
         else:
             return {"Error":"Contraseña  incorrecta"}
