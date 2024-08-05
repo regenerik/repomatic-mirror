@@ -8,7 +8,7 @@ from public_bp import public_bp                     # Acá importamos rutas publ
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
-
+from models import TodosLosReportes  # Importamos el modelo para TodosLosReportes
 
 app = Flask(__name__)
 
@@ -45,9 +45,25 @@ print(f"Ruta de la base de datos: {db_path}")
 if not os.path.exists(os.path.dirname(db_path)): # Nos aseguramos que se cree carpeta instance automatico para poder tener mydatabase.db dentro.
     os.makedirs(os.path.dirname(db_path))
 
+# Función para cargar los reportes iniciales
+def cargar_todos_los_reportes_iniciales():
+    if TodosLosReportes.query.count() == 0:  # Verificamos si la tabla está vacía
+        reportes_iniciales = [
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133", title="USUARIOS POR ASIGNACION PARA GESTORES"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=137&sid=501", title="CURSADA+YPFRESPALDO"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=248", title="Cursos con detalle"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", title="VERIFICA USUARIOS PARA GESTORES"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=286&sid=513", title="AVANCE DE PROGRAMAS PBI"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=286&sid=512", title="AVANCE DE PROGRAMAS PBI"),
+            # Agrega más reportes iniciales aquí
+        ]
+        db.session.bulk_save_objects(reportes_iniciales)
+        db.session.commit()
+        print("Base de datos inicializada con todos los reportes.")
 with app.app_context():
     db.init_app(app)
     db.create_all() # Nos aseguramos que este corriendo en el contexto del proyecto.
+    cargar_todos_los_reportes_iniciales()  # Cargamos los reportes iniciales
 # -----------------------
 
 # AL FINAL ( detecta que encendimos el servidor desde terminal y nos da detalles de los errores )

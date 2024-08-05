@@ -156,13 +156,7 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
     hora_inicio = datetime.now()
     logger.info(f"6 - Recuperando reporte desde la URL. Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
-    # Paso 4: Traer los datos en excel
-    # export_payload = {
-    #     "sesskey": sesskey,
-    #     "_qf__report_builder_export_form": "1",
-    #     "format": "excel",
-    #     "export": "Exportar"
-    # }
+
 
         # Paso 4: Traer los datos en csv
     export_payload = {
