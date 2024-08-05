@@ -25,3 +25,9 @@ class Reporte(db.Model):
     title = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow) # revisar si .UTC va o si cambiamos a .utcnow
 
+class TodosLosReportes(db.Model):
+    id = db.Column(db.Integer, primary_key=True)  # Primary Key
+    report_url = db.Column(db.String(255), unique=True, nullable=False)  # La URL del reporte
+    title = db.Column(db.String(255), nullable=False)  # El título del reporte
+    size_megabytes = db.Column(db.Float, nullable=True)  # El tamaño del reporte en megabytes, puede ser NULL si no está disponible
+    created_at = db.Column(db.DateTime, nullable=True)  # La fecha de creación, puede ser NULL si no está disponible

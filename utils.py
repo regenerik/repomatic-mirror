@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import Reporte
+from models import Reporte, TodosLosReportes
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 import pytz
@@ -14,11 +14,13 @@ tz = pytz.timezone('America/Sao_Paulo')
 
 #-----------------------------CAPTURAR REPORTES EXISTENTES-----------------------------------
 def compilar_reportes_existentes():
-    reportes = Reporte.query.all()
-    reportes_serializados = []
+    # Obtener todos los reportes posibles
+    todos_los_reportes = TodosLosReportes.query.all()  # Asegúrate de tener un modelo para esta tabla
+    reportes_disponibles = Reporte.query.all()  # La tabla que ya tenés con reportes disponibles
 
-    for reporte in reportes:
-        # Convertir la fecha de UTC a la zona horaria local
+    # Serializar los reportes disponibles
+    reportes_disponibles_serializados = []
+    for reporte in reportes_disponibles:
         created_at_utc = reporte.created_at.replace(tzinfo=pytz.utc)
         created_at_local = created_at_utc.astimezone(tz)
         reporte_dict = {
@@ -29,11 +31,29 @@ def compilar_reportes_existentes():
             'size_megabytes': reporte.size,
             'elapsed_time': reporte.elapsed_time,
             'created_at': created_at_local.strftime("%d/%m/%Y %H:%M:%S")
-
         }
-        reportes_serializados.append(reporte_dict)
+        reportes_disponibles_serializados.append(reporte_dict)
 
-    return reportes_serializados
+    # Crear un set de URLs de reportes disponibles
+    urls_disponibles = {reporte.report_url for reporte in reportes_disponibles}
+
+    # Filtrar los reportes no disponibles
+    reportes_no_disponibles_serializados = []
+    for reporte in todos_los_reportes:
+        if reporte.report_url not in urls_disponibles:
+            reporte_dict = {
+                'report_url': reporte.report_url,
+                'title': reporte.title,
+                'size_megabytes': None,  # Podés dejarlo en None si no tenés el tamaño para los no disponibles
+                'created_at': None  # Si no hay fecha para los no disponibles, dejarlo en None
+            }
+            reportes_no_disponibles_serializados.append(reporte_dict)
+
+    # Devolver ambas listas en un objeto
+    return {
+        'disponibles': reportes_disponibles_serializados,
+        'no_disponibles': reportes_no_disponibles_serializados
+    }
 
 # ----------------------------UTILS GENERAL PARA LOGGIN SESSION Y SESSKEY--------------------
 
@@ -64,7 +84,7 @@ def iniciar_sesion_y_obtener_sesskey(username, password, report_url):
     login_headers = {
         "Content-Type": "application/x-www-form-urlencoded"
     }
-    
+
 
     login_response = session.post(login_page_url, data=login_payload, headers=login_headers)
 
