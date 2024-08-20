@@ -286,6 +286,7 @@ def get_token():
     
 # EJEMPLO DE RUTA RESTRINGIDA POR TOKEN. ( LA MISMA RECUPERA TODOS LOS USERS Y LO ENVIA PARA QUIEN ESTÉ LOGUEADO )
     
+
 @admin_bp.route('/users')
 @jwt_required()  # Decorador para requerir autenticación con JWT
 def show_users():
