@@ -69,3 +69,5 @@ with app.app_context():
 # AL FINAL ( detecta que encendimos el servidor desde terminal y nos da detalles de los errores )
 if __name__ == '__main__':
     app.run()
+
+# EJECUTO CON : waitress-serve --port=5000 app:app

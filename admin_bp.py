@@ -29,7 +29,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/', '/reportes_disponibles', '/create_user', '/login', '/users']:
+    if request.path in ['/', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -214,6 +214,7 @@ def create_user():
         name = request.json.get('name')
         dni = request.json.get('dni')
         admin = None
+        url_image = "base"
         # Después de crear el primer administrador y la consola de agregar y quitar admins borrar este pedazo:
 
         if len(password) == 15:
@@ -232,14 +233,17 @@ def create_user():
 
 
         # Ensamblamos el usuario nuevo
-        new_user = User(email=email, password=password_hash, name=name , dni=dni, admin=admin)
+        new_user = User(email=email, password=password_hash, name=name , dni=dni, admin=admin, url_image= url_image)
 
         db.session.add(new_user)
         db.session.commit()
 
         good_to_share_to_user = {
             'name':new_user.name,
-            'email':new_user.email
+            'email':new_user.email,
+            'dni':new_user.dni,
+            'admin':new_user.admin,
+            'url_image':new_user.url_image
         }
 
         return jsonify({'message': 'User created successfully.','user_created':good_to_share_to_user}), 201
@@ -272,7 +276,7 @@ def get_token():
 
             user_dni = login_user.dni       # recuperamos el id del usuario para crear el token...
             access_token = create_access_token(identity=user_dni, expires_delta=expires)   # creamos el token con tiempo vencimiento
-            return jsonify({ 'access_token':access_token, 'name':login_user.name, 'admin':login_user.admin, 'dni':user_dni}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
+            return jsonify({ 'access_token':access_token, 'name':login_user.name, 'admin':login_user.admin, 'dni':user_dni, 'email':login_user.email, 'url_image':login_user.url_image}), 200  # Enviamos el token al front ( si es necesario serializamos el "login_user" y tambien lo enviamos en el objeto json )
 
         else:
             return {"Error":"Contraseña  incorrecta"}
@@ -285,17 +289,121 @@ def get_token():
 @admin_bp.route('/users')
 @jwt_required()  # Decorador para requerir autenticación con JWT
 def show_users():
-    current_user_id = get_jwt_identity()  # Obtiene la id del usuario del token
-    if current_user_id:
+    current_user_dni = get_jwt_identity()  # Obtiene la id del usuario del token
+    if current_user_dni:
         users = User.query.all()
         user_list = []
         for user in users:
             user_dict = {
                 'dni': user.dni,
                 'email': user.email,
-                'name': user.name
+                'name': user.name,
+                'admin': user.admin,
+                'url_image': user.url_image
             }
             user_list.append(user_dict)
         return jsonify({"lista_usuarios":user_list , 'cantidad':len(user_list)}), 200
     else:
         return {"Error": "Token inválido o vencido"}, 401
+
+
+@admin_bp.route('/update_profile', methods=['PUT'])
+def update():
+    email = request.json.get('email')
+    password = request.json.get('password')
+    name = request.json.get('name')
+    dni = request.json.get('dni')
+    url_image = "base"
+
+
+    # Verificar que todos los campos requeridos estén presentes
+    if not email or not password or not name or not dni or not url_image:
+        return jsonify({"error": "Todos los campos son obligatorios"}), 400
+
+    # Buscar al usuario por email
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    # Actualizar los datos del usuario
+    user.name = name
+    user.dni = dni
+    user.password = bcrypt.generate_password_hash(password)  # Asegúrate de hash la contraseña antes de guardarla
+    user.url_image = url_image
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Usuario actualizado con éxito"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al actualizar el usuario: {str(e)}"}), 500
+    
+
+
+@admin_bp.route('/update_profile_image', methods=['PUT'])
+def update_profile_image():
+    email = request.json.get('email')
+    url_image = request.json.get('url_image')
+
+    # Verificar que ambos campos estén presentes
+    if not email or not url_image:
+        return jsonify({"error": "El email y la URL de la imagen son obligatorios"}), 400
+
+    # Buscar al usuario por email
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    # Actualizar solo la URL de la imagen
+    user.url_image = url_image
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Imagen de perfil actualizada con éxito"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al actualizar la imagen: {str(e)}"}), 500
+    
+
+@admin_bp.route('/update_admin', methods=['PUT'])
+def update_admin():
+    email = request.json.get('email')
+    admin = request.json.get('admin')
+
+    # Verificar que ambos campos estén presentes
+    if not email or not admin:
+        return jsonify({"error": "El email y la situación admin son obligatorios"}), 400
+
+    # Buscar al usuario por email
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    # Actualizar solo la URL de la imagen
+    user.admin = admin
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Estado admin actualizado con éxito"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al actualizar el estado admin: {str(e)}"}), 500
+    
+
+@admin_bp.route('/get_user/<int:dni>', methods=['GET'])
+def get_user(dni):
+    try:
+        
+        login_user = User.query.filter_by(dni=dni).one()
+
+        if login_user:
+            return jsonify({'name':login_user.name, 'admin':login_user.admin, 'dni':login_user.dni, 'email':login_user.email, 'url_image':login_user.url_image}), 200 
+
+        else:
+            return {"Error":"No se encontró un usuario con ese documento"}
+    
+    except Exception as e:
+        return {"Error":"El dni proporcionado no corresponde a ninguno registrado: " + str(e)}, 500
