@@ -1,3 +1,4 @@
+import openai
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -8,9 +9,18 @@ from models import Reporte, TodosLosReportes
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 import pytz
+from dotenv import load_dotenv
+load_dotenv()
+import os
 from logging_config import logger
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
+
+# - Creando cliente openai
+client = openai.OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
+)
 
 #-----------------------------CAPTURAR REPORTES EXISTENTES-----------------------------------
 def compilar_reportes_existentes():
@@ -280,3 +290,64 @@ def obtener_reporte(reporte_url):
     else:
         return None, None, None
 
+
+
+#-------------------------------------------------------UTILS PARA EXPERIENCIA DE USUARIO--------------------
+
+def get_resumes(file_content):
+    # Leer el archivo Excel desde el contenido en memoria (file_content)
+    df = pd.read_excel(file_content)
+
+    # Crear un diccionario para agrupar los comentarios por APIES
+    comentarios_por_apies = {}
+    for apies, comentario in zip(df['APIES'], df['COMENTARIO']):
+        if apies not in comentarios_por_apies:
+            comentarios_por_apies[apies] = []
+        comentarios_por_apies[apies].append(comentario)
+
+    # Recorrer cada APIES y crear el prompt para OpenAI
+    resultados = []
+    pedido = 0
+    for apies, comentarios in comentarios_por_apies.items():
+        prompt = f"""
+        A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen de los comentarios, **sin sesgos**, y respondas las siguientes indicaciones:
+
+        1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes.
+        
+        2. **Temáticas más comentadas**: Ordena las temáticas desde la más comentada hasta la menos comentada. Es importante identificar las quejas o comentarios más recurrentes.
+
+        3. **Motivos del malestar o quejas**: Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí.
+
+        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporcionales un puntaje según la evaluación que dichos comentarios hacen. Si no hay comentarios sobre un tópico, simplemente coloca "-".
+
+        - **A** (Atención al cliente)
+        - **T** (Tiempo de espera)
+        - **S** (Sanitarios)
+
+        El código resumen debe estar en el siguiente formato uniforme, sin variaciones en el encabezado o la estructura:
+
+        2. **Código Resumen**:
+
+        ##APIES {apies}-A:X,T:Y,S:Z##
+        """
+
+        try:
+            pedido = pedido + 1
+            print(f"El promp numero: {pedido}, está en proceso...")
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres un analista que clasifica comentarios sobre eficiencia."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            # Acceder directamente al mensaje completo como en el código funcional
+            resumen = completion.choices[0].message.content
+            resultados.append(f"APIES {apies}:\n{resumen}\n")
+
+        except Exception as e:
+            resultados.append(f"Ocurrió un error al procesar el APIES {apies}: {e}\n")
+
+    # Retornar el resultado en lugar de guardar un archivo
+    return "\n".join(resultados)

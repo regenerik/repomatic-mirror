@@ -17,6 +17,7 @@ openpyxl = "*"
 python-dotenv = "*"
 pytz = "*"
 waitress = "*"
+openai = "*"
 
 [dev-packages]
 

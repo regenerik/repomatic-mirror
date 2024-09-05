@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import User                                          # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from utils import get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -29,7 +29,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
+    if request.path in ['/','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -408,3 +408,32 @@ def get_user(dni):
     
     except Exception as e:
         return {"Error":"El dni proporcionado no corresponde a ninguno registrado: " + str(e)}, 500
+    
+
+    #-----------------------------RUTAS PARA EXPERIENCIA APIES-------------------
+
+
+@admin_bp.route('/create_resumes', methods=['POST'])
+def create_resumes():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No se encontró ningún archivo en la solicitud"}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({"error": "No se seleccionó ningún archivo"}), 400
+
+        if file and file.filename.lower().endswith('.xlsx'):
+            # Leer el archivo directamente desde la memoria
+            file_content = file.read()
+
+            # Llamamos al util que procesa el contenido del archivo
+            result = get_resumes(file_content)
+
+            return jsonify({"message": result}), 200
+        else:
+            return jsonify({"error": "El archivo no es válido. Solo se permiten archivos .xlsx"}), 400
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
