@@ -8,6 +8,7 @@ from database import db
 from models import Reporte, TodosLosReportes
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
+from io import BytesIO
 import pytz
 from dotenv import load_dotenv
 load_dotenv()
@@ -310,25 +311,36 @@ def get_resumes(file_content):
     pedido = 0
     for apies, comentarios in comentarios_por_apies.items():
         prompt = f"""
-        A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen de los comentarios, **sin sesgos**, y respondas las siguientes indicaciones:
+        A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
 
-        1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes.
+        1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
         
-        2. **Temáticas más comentadas**: Ordena las temáticas desde la más comentada hasta la menos comentada. Es importante identificar las quejas o comentarios más recurrentes.
+        2. **Temáticas más comentadas**:  Mostrar porcentaje de cada temática mencionada sobre la totalidad. Ordena las temáticas desde la más comentada hasta la menos comentada, identificando las quejas o comentarios más recurrentes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
 
-        3. **Motivos del malestar o quejas**: Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí.
+        3. **Motivos del malestar o quejas**:  Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí. Mostrar porcentaje de comentarios de cada motivo de queja sobre la totalidad de los comentarios.  Si se mencionan nombres, citarlos en la respuesta con el motivo.
 
-        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporcionales un puntaje según la evaluación que dichos comentarios hacen. Si no hay comentarios sobre un tópico, simplemente coloca "-".
-
+        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporciona un puntaje del 1 al 10 basado en el porcentaje de comentarios positivos sobre la totalidad de comentarios en cada uno. Si no hay comentarios sobre un tópico, simplemente coloca "-".
+        
         - **A** (Atención al cliente)
         - **T** (Tiempo de espera)
         - **S** (Sanitarios)
 
-        El código resumen debe estar en el siguiente formato uniforme, sin variaciones en el encabezado o la estructura:
+        El puntaje se determina de la siguiente forma:
+        - Si entre 90% y 99% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 9, en el tópico correspondiente.
+        - Si el 100% de los comentarios totales  de uno de los 3 tópicos son positivos, el puntaje es 10, en el tópico correspondiente.
+        - Si entre 80% y el 89% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 8, en el tópico correspondiente. y así sucesivamente.
 
-        2. **Código Resumen**:
+        **Esta es la lista de comentarios para el análisis:**
+        {comentarios}
 
-        ##APIES {apies}-A:X,T:Y,S:Z##
+        **Proporción y puntaje para cada tópico mencionado:**
+        1. Atención al cliente (A): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        2. Tiempo de espera (T): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        3. Sanitarios (S): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+
+        **Código Resumen**:
+
+        ##APIES {apies}-A:5,T:Y,S:8## ( los puntajes son meramente demostrativos para entender el formato que espero de la respuesta )
         """
 
         try:
@@ -349,5 +361,45 @@ def get_resumes(file_content):
         except Exception as e:
             resultados.append(f"Ocurrió un error al procesar el APIES {apies}: {e}\n")
 
-    # Retornar el resultado en lugar de guardar un archivo
-    return "\n".join(resultados)
+    # # Retornar el resultado en lugar de guardar un archivo
+    # return "\n".join(resultados)
+
+        # Ahora procesamos los resultados para extraer los puntajes y construir el archivo Excel
+    data = []
+
+    for resultado in resultados:
+        apies_match = re.search(r"APIES (\d+)", resultado)
+        if apies_match:
+            apies = apies_match.group(1)
+
+        # Usamos expresiones regulares para extraer los puntajes A, T, S
+        a_match = re.search(r"A:(\d+)", resultado)
+        t_match = re.search(r"T:(\d+)", resultado)
+        s_match = re.search(r"S:(\d+)", resultado)
+
+        a_score = int(a_match.group(1)) if a_match else "-"
+        t_score = int(t_match.group(1)) if t_match else "-"
+        s_score = int(s_match.group(1)) if s_match else "-"
+
+        # Agregamos una fila a nuestra lista de datos, incluyendo el resumen completo
+        data.append({
+            "APIES": apies,
+            "ATENCION AL CLIENTE": a_score,
+            "TIEMPO DE ESPERA": t_score,
+            "SANITARIOS": s_score,
+            "RESUMEN": resultado
+        })
+
+    # Crear un DataFrame con los resultados
+    df_resultados = pd.DataFrame(data)
+
+    # Crear un archivo Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_resultados.to_excel(writer, index=False, sheet_name='Resúmenes')
+
+    # Volver al inicio del archivo para que Flask pueda leerlo
+    output.seek(0)
+
+    # Retornar el archivo Excel en memoria
+    return output

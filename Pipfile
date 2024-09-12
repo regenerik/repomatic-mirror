@@ -18,6 +18,7 @@ python-dotenv = "*"
 pytz = "*"
 waitress = "*"
 openai = "*"
+XlsxWriter= "==3.1.2"
 
 [dev-packages]
 

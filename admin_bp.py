@@ -1,4 +1,4 @@
-from flask import Blueprint,make_response, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
+from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
 from models import User                                          # importar tabla "User" de models
@@ -428,10 +428,12 @@ def create_resumes():
             # Leer el archivo directamente desde la memoria
             file_content = file.read()
 
-            # Llamamos al util que procesa el contenido del archivo
-            result = get_resumes(file_content)
+            # Llamamos al util que procesa el contenido del archivo y genera el archivo Excel
+            output = get_resumes(file_content)
 
-            return jsonify({"message": result}), 200
+            # Preparar la respuesta para enviar el archivo Excel
+            return send_file(output, download_name="resumenes.xlsx", as_attachment=True)
+
         else:
             return jsonify({"error": "El archivo no es válido. Solo se permiten archivos .xlsx"}), 400
     
