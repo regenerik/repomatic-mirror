@@ -380,10 +380,7 @@ def update_admin():
         return jsonify({"error": "Usuario no encontrado"}), 404
 
     # Actualizar estado admin
-    if user.admin:
-        user.admin = False
-    if not user.admin:
-        user.admin = True
+    user.admin = not user.admin
 
     try:
         db.session.commit()
