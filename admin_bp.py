@@ -379,8 +379,11 @@ def update_admin():
     if not user:
         return jsonify({"error": "Usuario no encontrado"}), 404
 
-    # Actualizar solo la URL de la imagen
-    user.admin = admin
+    # Actualizar estado admin
+    if user.admin:
+        user.admin = False
+    if not user.admin:
+        user.admin = True
 
     try:
         db.session.commit()
