@@ -370,7 +370,7 @@ def update_admin():
     admin = request.json.get('admin')
 
     # Verificar que ambos campos estén presentes
-    if not email or not admin:
+    if email is None or admin is None:
         return jsonify({"error": "El email y la situación admin son obligatorios"}), 400
 
     # Buscar al usuario por email
