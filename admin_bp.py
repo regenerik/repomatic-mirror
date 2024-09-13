@@ -384,7 +384,7 @@ def update_admin():
 
     try:
         db.session.commit()
-        return jsonify({"message": "Estado admin actualizado con éxito"}), 200
+        return jsonify({"message": f"Estado admin de {email} ahora es {'admin' if user.admin else 'no admin'}", "admin": user.admin}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Error al actualizar el estado admin: {str(e)}"}), 500
