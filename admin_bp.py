@@ -213,14 +213,10 @@ def create_user():
         password = request.json.get('password')
         name = request.json.get('name')
         dni = request.json.get('dni')
-        admin = None
+        admin = False
         url_image = "base"
         # Después de crear el primer administrador y la consola de agregar y quitar admins borrar este pedazo:
 
-        if len(password) == 15:
-            admin = True
-        else:
-            admin = False
         #-----------------------------------------------------------------------------------------------------
         if not email or not password or not name or not dni:
             return jsonify({'error': 'Email, password, dni and Name are required.'}), 400

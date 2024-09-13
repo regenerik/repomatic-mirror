@@ -8,7 +8,7 @@ from public_bp import public_bp                     # Acá importamos rutas publ
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
-from models import TodosLosReportes  # Importamos el modelo para TodosLosReportes
+from models import TodosLosReportes, User  # Importamos el modelo para TodosLosReportes
 
 app = Flask(__name__)
 
@@ -60,10 +60,49 @@ def cargar_todos_los_reportes_iniciales():
         db.session.bulk_save_objects(reportes_iniciales)
         db.session.commit()
         print("Base de datos inicializada con todos los reportes.")
+
+# Función para cargar los usuarios iniciales
+def cargar_usuarios_iniciales():
+    if User.query.count() == 0:  # Verificamos si la tabla User está vacía
+        usuarios_iniciales = [
+            {
+                "email": "regenerik@gmail.com",
+                "name": "David",
+                "password": "mentira1",
+                "dni": "34490395",
+                "admin": True,
+                "url_image": "www.replacethisurl.com"
+            },
+            {
+                "email": "nahuel.paz@ypf.com",
+                "name": "Nahuel",
+                "password": "Nahuel18",
+                "dni": "34260191",
+                "admin": True,
+                "url_image": "www.replacethisurl.com"
+            }
+        ]
+
+        for usuario in usuarios_iniciales:
+            password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
+            new_user = User(
+                email=usuario['email'],
+                name=usuario['name'],
+                password=password_hash,
+                dni=usuario['dni'],
+                admin=usuario['admin'],
+                url_image=usuario['url_image']
+            )
+            db.session.add(new_user)
+
+        db.session.commit()
+        print("Usuarios iniciales cargados correctamente.")
+
 with app.app_context():
     db.init_app(app)
     db.create_all() # Nos aseguramos que este corriendo en el contexto del proyecto.
     cargar_todos_los_reportes_iniciales()  # Cargamos los reportes iniciales
+    cargar_usuarios_iniciales()
 # -----------------------
 
 # AL FINAL ( detecta que encendimos el servidor desde terminal y nos da detalles de los errores )
