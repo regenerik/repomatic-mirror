@@ -9,6 +9,8 @@ from database import db                             # Acá importamos la base de
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
 from models import TodosLosReportes, User  # Importamos el modelo para TodosLosReportes
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -66,20 +68,20 @@ def cargar_usuarios_iniciales():
     if User.query.count() == 0:  # Verificamos si la tabla User está vacía
         usuarios_iniciales = [
             {
-                "email": "regenerik@gmail.com",
-                "name": "David",
-                "password": "mentira1",
-                "dni": "34490395",
-                "admin": True,
-                "url_image": "www.replacethisurl.com"
+                "email": os.getenv('EMAIL1'),
+                "name": os.getenv('NAME1'),
+                "password": os.getenv('PASSWORD1'),
+                "dni": os.getenv('DNI1'),
+                "admin": os.getenv('ADMIN1') == 'True',
+                "url_image": os.getenv('URL_IMAGE1')
             },
             {
-                "email": "nahuel.paz@ypf.com",
-                "name": "Nahuel",
-                "password": "Nahuel18",
-                "dni": "34260191",
-                "admin": True,
-                "url_image": "www.replacethisurl.com"
+                "email": os.getenv('EMAIL2'),
+                "name": os.getenv('NAME2'),
+                "password": os.getenv('PASSWORD2'),
+                "dni": os.getenv('DNI2'),
+                "admin": os.getenv('ADMIN2') == 'True',
+                "url_image": os.getenv('URL_IMAGE2')
             }
         ]
 

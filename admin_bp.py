@@ -1,16 +1,18 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User                                          # importar tabla "User" de models
+from models import User, Survey                                  # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils import get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from utils import obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
 import pytz
 import re
+import pandas as pd
+from io import BytesIO
 
 
 
@@ -134,7 +136,7 @@ def exportar_y_guardar_reporte_ruta():
 
 def run_exportar_y_guardar_reporte(session, sesskey, username, url):
     with current_app.app_context():
-        exportar_y_guardar_reporte(session, sesskey, username, url)
+        exportar_y_guardar_reporte()
 
     
     
@@ -202,7 +204,58 @@ def descargar_reporte():
         return jsonify({"error": "No se encontró el reporte"}), 404
 
 
+# RUTAS SURVEY NUEVAS ( PEDIDO Y RECUPERACION )-------------------------------------------------------------//////////////////////////
+@admin_bp.route('/recuperar_survey', methods=['GET'])
+def obtener_y_guardar_survey_ruta():
+    from extensions import executor
+    logger.info("0 - GET > /recuperar_survey a comenzando...")
 
+    
+    
+# Lanzar la función de exportar y guardar reporte en un job separado
+    executor.submit(run_obtener_y_guardar_survey)
+
+    logger.info(f"1 - Hilo de ejecución independiente inicializado, retornando 200...")
+
+    return jsonify({"message": "El proceso de recuperacion de survey ha comenzado"}), 200
+
+def run_obtener_y_guardar_survey():
+    with current_app.app_context():
+        obtener_y_guardar_survey()
+
+    
+
+@admin_bp.route('/descargar_survey', methods=['GET'])
+def descargar_survey():
+    try:
+        # Obtener el registro más reciente de la base de datos
+        survey_record = Survey.query.order_by(Survey.id.desc()).first()
+
+        if not survey_record:
+            return jsonify({"message": "No se encontraron encuestas en la base de datos"}), 404
+
+        # Convertir los datos binarios de vuelta a DataFrame
+        logger.info("Recuperando archivo binario desde la base de datos...")
+        binary_data = survey_record.data
+        df_responses = pd.read_pickle(BytesIO(binary_data))
+
+        # Convertir DataFrame a Excel en memoria
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_responses.to_excel(writer, index=False, sheet_name='Survey Responses')
+
+        # Preparar el archivo Excel para enviarlo
+        output.seek(0)
+        logger.info("Archivo Excel creado y listo para descargar.")
+
+        return send_file(output, download_name='survey_respuestas.xlsx', as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except Exception as e:
+        logger.error(f"Error al generar el archivo Excel: {str(e)}")
+        return jsonify({"message": "Hubo un error al generar el archivo Excel"}), 500
+
+
+# ----------------------------------------------------------------------------------------------------------//////////////////////////
 
 
 # RUTA CREAR USUARIO

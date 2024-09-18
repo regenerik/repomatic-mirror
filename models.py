@@ -32,3 +32,7 @@ class TodosLosReportes(db.Model):
     title = db.Column(db.String(255), nullable=False)  # El título del reporte
     size_megabytes = db.Column(db.Float, nullable=True)  # El tamaño del reporte en megabytes, puede ser NULL si no está disponible
     created_at = db.Column(db.DateTime, nullable=True)  # La fecha de creación, puede ser NULL si no está disponible
+
+class Survey(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.LargeBinary, nullable=False)
