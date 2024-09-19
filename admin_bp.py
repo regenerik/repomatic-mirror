@@ -136,7 +136,7 @@ def exportar_y_guardar_reporte_ruta():
 
 def run_exportar_y_guardar_reporte(session, sesskey, username, url):
     with current_app.app_context():
-        exportar_y_guardar_reporte()
+        exportar_y_guardar_reporte(session, sesskey, username, url)
 
     
     
