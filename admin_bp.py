@@ -242,7 +242,7 @@ def descargar_survey():
         # Convertir DataFrame a Excel en memoria
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_responses.to_excel(writer, index=False, sheet_name='Survey Responses')
+            df_responses.to_excel(writer, index=False, sheet_name='Sheet1')
 
         # Preparar el archivo Excel para enviarlo
         output.seek(0)
