@@ -1,7 +1,7 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, Survey                                  # importar tabla "User" de models
+from models import User, Survey, TotalComents                    # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
 from utils import obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
@@ -488,3 +488,90 @@ def create_resumes():
     
     except Exception as e:
         return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
+    
+
+# ------------------------RESUMEN GIGANTE DE COMENTARIOS DE APIES-----------------------------------/////////////////////////////////////////////////////////
+
+@admin_bp.route('/eliminar_excel_total', methods=['DELETE'])
+def eliminar_excel():
+    try:
+        excel_data = TotalComents.query.first()
+        if excel_data:
+            db.session.delete(excel_data)
+            db.session.commit()
+            return jsonify({"message": "Excel eliminado con éxito"}), 200
+        else:
+            return jsonify({"message": "No hay archivo Excel para eliminar"}), 404
+    except Exception as e:
+        return jsonify({"message": "Error al eliminar el archivo"}), 500
+    
+
+@admin_bp.route('/subir_excel_total', methods=['POST'])
+def subir_excel():
+    try:
+        # Eliminar el registro anterior
+        excel_data = TotalComents.query.first()
+        if excel_data:
+            db.session.delete(excel_data)
+            db.session.commit()
+
+        # Guardar el nuevo Excel en binario
+        file = request.files['file']
+        df = pd.read_excel(file)  # Cargamos el Excel usando pandas
+        binary_data = BytesIO()
+        df.to_pickle(binary_data)  # Convertimos el DataFrame a binario
+        binary_data.seek(0)
+
+        nuevo_excel = TotalComents(data=binary_data.read())
+        db.session.add(nuevo_excel)
+        db.session.commit()
+
+        return jsonify({"message": "Archivo subido con éxito"}), 200
+    except Exception as e:
+        return jsonify({"message": f"Error al subir el archivo: {str(e)}"}), 500
+    
+@admin_bp.route('/descargar_excel', methods=['GET'])
+def descargar_excel():
+    try:
+        # Obtener el registro más reciente de la base de datos
+        excel_data = TotalComents.query.first()
+
+        if not excel_data:
+            return jsonify({"message": "No se encontró ningún archivo Excel en la base de datos"}), 404
+
+        # Convertir los datos binarios de vuelta a DataFrame
+        binary_data = BytesIO(excel_data.data)
+        df = pd.read_pickle(binary_data)
+
+        # Convertir el DataFrame a un archivo Excel en memoria
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='APIES_Data')
+
+        output.seek(0)  # Mover el puntero al inicio del archivo
+
+        # Enviar el archivo Excel como respuesta
+        return send_file(output, 
+                         download_name='apies_data.xlsx', 
+                         as_attachment=True, 
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except Exception as e:
+        return jsonify({"message": f"Error al descargar el archivo: {str(e)}"}), 500
+    
+
+@admin_bp.route('/existencia_excel', methods=['GET'])
+def existencia_excel():
+    try:
+        # Obtener el registro más reciente de la base de datos
+        excel_data = TotalComents.query.first()
+
+        if not excel_data:
+            return jsonify({"message": "No se encontró ningún archivo Excel en la base de datos", "ok": False}), 404
+        else:
+            # Formatear el timestamp de manera legible (dd/mm/yyyy HH:MM:SS)
+            datetime = excel_data.timestamp.strftime('%d/%m/%Y %H:%M:%S')
+            return jsonify({"message": f"El archivo se encuentra disponible. Y data del día: {datetime}", "ok": True, "datetime":datetime}), 200
+        
+    except Exception as e:
+        return jsonify({"message": f"Error al confirmar la existencia del archivo: {str(e)}", "ok": False}), 500
