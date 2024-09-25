@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import User, Survey, TotalComents                    # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils import obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from utils import get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -575,3 +575,28 @@ def existencia_excel():
         
     except Exception as e:
         return jsonify({"message": f"Error al confirmar la existencia del archivo: {str(e)}", "ok": False}), 500
+
+@admin_bp.route('/get_one_resume', methods=['POST'])
+def get_one_resume():
+    logger.info("1 - Entró en ruta /get_one_resume...")
+    request_data = request.json
+    apies_input = request_data.get("apies")
+    logger.info(f"2 - Recuperando apies: {apies_input}")
+
+
+    db_data = TotalComents.query.first().data
+
+    if not db_data:
+        return jsonify({"error": "No se encontraron datos en la base de datos"}), 404
+
+    # Ahora pasamos los datos binarios al util
+    output = get_resumes_for_apies(apies_input, db_data)
+
+    # Aquí verificamos si `output` contiene un mensaje de error en lugar de un archivo
+    if isinstance(output, str) and "No se encontraron comentarios" in output:
+        logger.info(output)
+        return jsonify({"error": output}), 404
+
+    logger.info(f"11 - Devolviendo resultado de apies: {apies_input}. Fin de la ejecución.")
+    # Devolver el Excel al frontend si todo va bien
+    return send_file(output, download_name=f"resumen_apies_{apies_input}.xlsx", as_attachment=True)

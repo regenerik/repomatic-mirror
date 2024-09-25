@@ -527,3 +527,102 @@ def obtener_y_guardar_survey():
     logger.info(f"10 - Survey recuperado y guardado en db. Tiempo transcurrido de descarga y guardado: {elapsed_time_str}")
     
     return  # Fin de la ejecución en segundo plano
+
+
+# GET ONE FROM TOTAL RESUMEN OF COMMENTS --------------------------------------------/////
+
+
+def get_resumes_for_apies(apies_input, db_data):
+    logger.info("3 - Ejecutando util get_resumes_for_apies...")
+    
+    # Leer el archivo Excel desde la DB (binario)
+    logger.info("4 - Recuperando excel desde binario...")
+    binary_data = BytesIO(db_data)
+    df = pd.read_pickle(binary_data)
+
+    apies_input = int(apies_input)
+
+    logger.info("5 - Filtrando comentarios correspondientes a la estación de servicio...")
+    # Filtrar los comentarios correspondientes al número de APIES
+    comentarios_filtrados = df[df.iloc[:, 1] == apies_input].iloc[:, 2]
+
+    if comentarios_filtrados.empty:
+        return f"No se encontraron comentarios para la estación {apies_input}"
+
+    # Crear el prompt de OpenAI con los comentarios filtrados
+    prompt = f"""
+        A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {str(apies_input)}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
+
+        1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
+        
+        2. **Temáticas más comentadas**:  Mostrar porcentaje de cada temática mencionada sobre la totalidad. Ordena las temáticas desde la más comentada hasta la menos comentada, identificando las quejas o comentarios más recurrentes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
+
+        3. **Motivos del malestar o quejas**:  Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí. Mostrar porcentaje de comentarios de cada motivo de queja sobre la totalidad de los comentarios.  Si se mencionan nombres, citarlos en la respuesta con el motivo.
+
+        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporciona un puntaje del 1 al 10 basado en el porcentaje de comentarios positivos sobre la totalidad de comentarios en cada uno. Si no hay comentarios sobre un tópico, simplemente coloca "-".
+        
+        - **A** (Atención al cliente)
+        - **T** (Tiempo de espera)
+        - **S** (Sanitarios)
+
+        El puntaje se determina de la siguiente forma:
+        - Si entre 90% y 99% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 9, en el tópico correspondiente.
+        - Si el 100% de los comentarios totales  de uno de los 3 tópicos son positivos, el puntaje es 10, en el tópico correspondiente.
+        - Si entre 80% y el 89% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 8, en el tópico correspondiente. y así sucesivamente.
+
+        **Esta es la lista de comentarios para el análisis:**
+        {comentarios_filtrados.tolist()}
+
+        **Proporción y puntaje para cada tópico mencionado:**
+        1. Atención al cliente (A): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        2. Tiempo de espera (T): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        3. Sanitarios (S): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+
+        **Código Resumen**:
+
+        ##APIES {str(apies_input)}-A:5,T:Y,S:8## ( los puntajes son meramente demostrativos para entender el formato que espero de la respuesta )
+        """
+    logger.info("6 - Pidiendo resumen a OPENAI...")
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Eres un analista que clasifica comentarios sobre eficiencia."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        resumen = completion.choices[0].message.content
+
+    except Exception as e:
+        return f"Error al procesar el APIES {apies_input}: {e}"
+
+    logger.info("7 - Extracción de datos importantes del texto resultante...")
+    # Extraer puntajes usando regex
+    a_match = re.search(r"A:(\d+)", resumen)
+    t_match = re.search(r"T:(\d+)", resumen)
+    s_match = re.search(r"S:(\d+)", resumen)
+
+    a_score = int(a_match.group(1)) if a_match else "-"
+    t_score = int(t_match.group(1)) if t_match else "-"
+    s_score = int(s_match.group(1)) if s_match else "-"
+
+    # Preparar datos para el Excel
+    logger.info("8 - Preparando matriz para crear el excel de respuesta...")
+    data = [{
+        "APIES": apies_input,
+        "ATENCION AL CLIENTE": a_score,
+        "TIEMPO DE ESPERA": t_score,
+        "SANITARIOS": s_score,
+        "RESUMEN": resumen
+    }]
+
+    df_resultados = pd.DataFrame(data)
+    logger.info("9 - Creando excel...")
+    # Crear un archivo Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_resultados.to_excel(writer, index=False, sheet_name='Resúmenes')
+
+    output.seek(0)
+    logger.info("10 - Devolviendo excel a la ruta...")
+    return output  # Devuelve el archivo Excel
