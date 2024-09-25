@@ -552,7 +552,8 @@ def descargar_excel():
             df.to_excel(writer, index=False, sheet_name='APIES_Data')
 
         output.seek(0)  # Mover el puntero al inicio del archivo
-
+        
+        logger.info("4 - Devolviendo excel. Fin del proceso...")
         # Enviar el archivo Excel como respuesta
         return send_file(output, 
                          download_name='apies_data.xlsx', 
