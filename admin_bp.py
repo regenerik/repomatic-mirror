@@ -31,7 +31,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
+    if request.path in ['/','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -533,16 +533,19 @@ def subir_excel():
 @admin_bp.route('/descargar_excel', methods=['GET'])
 def descargar_excel():
     try:
+        logger.info("1 - Entró en la ruta descargar_excel")
         # Obtener el registro más reciente de la base de datos
         excel_data = TotalComents.query.first()
 
         if not excel_data:
             return jsonify({"message": "No se encontró ningún archivo Excel en la base de datos"}), 404
 
+        logger.info("2 - Encontró el excel en db, traduciendo de binario a dataframe..")
         # Convertir los datos binarios de vuelta a DataFrame
         binary_data = BytesIO(excel_data.data)
         df = pd.read_pickle(binary_data)
 
+        logger.info("3 - De dataframe a excel...")
         # Convertir el DataFrame a un archivo Excel en memoria
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
