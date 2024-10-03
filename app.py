@@ -57,7 +57,10 @@ def cargar_todos_los_reportes_iniciales():
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", title="VERIFICA USUARIOS PARA GESTORES"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=286&sid=513", title="AVANCE DE PROGRAMAS PBI"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=286&sid=512", title="AVANCE DE PROGRAMAS PBI"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", title="DETALLES DE APIES"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=204", title="T2_CURSOS_HV"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", title="T2_APIES_HV"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", title="VERIFICA USUARIOS PARA GESTORES"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", title="T2_FACILITADOR_SEMINAR")
             # Agrega más reportes iniciales aquí
         ]
         db.session.bulk_save_objects(reportes_iniciales)

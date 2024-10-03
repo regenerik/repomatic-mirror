@@ -209,14 +209,18 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
                     # Aquí puedes implementar lógica adicional para verificar el texto
                     # Por ejemplo, podrías verificar si contiene ciertas palabras clave
                     logger.info(f"7 - Texto encontrado en <span>: {span_text}")
-                    # Lista con los títulos posibles
-                    titulos_posibles = [
-                        "USUARIOS POR ASIGNACION PARA GESTORES",
-                        "CURSADA+YPFRESPALDO",
-                        "Cursos con detalle",
-                        "VERIFICA USUARIOS PARA GESTORES",
-                        "AVANCE DE PROGRAMAS PBI",
-                    ]
+
+                    # Lista con los títulos posibles / deprecado , ahora capturo los titulos posibles de la precarga de reportes de app.py
+                    # titulos_posibles = [
+                    #     "USUARIOS POR ASIGNACION PARA GESTORES",
+                    #     "CURSADA+YPFRESPALDO",
+                    #     "Cursos con detalle",
+                    #     "VERIFICA USUARIOS PARA GESTORES",
+                    #     "AVANCE DE PROGRAMAS PBI",
+                    # ]
+
+                    # Obtener todos los títulos de la base de datos
+                    titulos_posibles = [reporte.title for reporte in TodosLosReportes.query.all()]
 
                     # Verificamos si span_text está en la lista de títulos posibles
                     if span_text in titulos_posibles:
