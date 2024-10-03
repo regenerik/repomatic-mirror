@@ -27,6 +27,9 @@ client = openai.OpenAI(
 def compilar_reportes_existentes():
     # Obtener todos los reportes posibles
     todos_los_reportes = TodosLosReportes.query.all()  # Asegúrate de tener un modelo para esta tabla
+    titulos_posibles = [reporte.title for reporte in todos_los_reportes]
+
+    logger.info(f"1 - Todos los titulos de reportes posibles son: {titulos_posibles}")
     reportes_disponibles = Reporte.query.all()  # La tabla que ya tenés con reportes disponibles
 
     # Serializar los reportes disponibles
