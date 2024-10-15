@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from logging_config import logger
+import gc
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
 
@@ -491,6 +492,8 @@ def obtener_y_guardar_survey():
                         responses_dict[respondent_id][question_id] = answer["text"]
 
     df_responses = pd.DataFrame.from_dict(responses_dict, orient='index')
+    all_responses = []
+
 
     # Paso 5: Limpiar columnas con tags HTML
     def extract_text_from_span(html_text):
@@ -507,16 +510,23 @@ def obtener_y_guardar_survey():
 
     # Convertir el DataFrame a binario
     logger.info("7 - Convirtiendo DataFrame a binario...")
-    output = BytesIO()
-    # df_responses.to_parquet(output, index=False)
-    df_responses.to_pickle(output)  # Cambiamos a pickle
-    binary_data = output.getvalue()
+    #-----------------------Si no funciona vuelvo a habilitar esto>>>
+    # output = BytesIO()
+    # # df_responses.to_parquet(output, index=False)
+    # df_responses.to_pickle(output)  # Cambiamos a pickle
+    # binary_data = output.getvalue()
+    #-----------------------------------------------------------------
+    with BytesIO() as output:
+        df_responses.to_pickle(output)  # Cambiamos a pickle
+        binary_data = output.getvalue()
+
 
     # Paso 6: Guardar en la base de datos
     logger.info("8 - Guardando resultados en la base de datos...")
 
     # Primero, eliminar cualquier registro anterior
     db.session.query(Survey).delete()
+    db.session.flush()
     
     # Crear un nuevo registro
     new_survey = Survey(data=binary_data)
@@ -532,6 +542,9 @@ def obtener_y_guardar_survey():
     elapsed_time = hora_descarga_finalizada - hora_inicio
     elapsed_time_str = str(elapsed_time)
     logger.info(f"10 - Survey recuperado y guardado en db. Tiempo transcurrido de descarga y guardado: {elapsed_time_str}")
+
+    #limpieza
+    gc.collect()
     
     return  # Fin de la ejecución en segundo plano
 
