@@ -1,7 +1,7 @@
-from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app # Blueprint para modularizar y relacionar con app
+from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, Survey, TotalComents                    # importar tabla "User" de models
+from models import User, Survey, TotalComents, AllApiesResumes   # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
 from utils import get_resumes_of_all, get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
@@ -459,7 +459,7 @@ def get_user(dni):
         return {"Error":"El dni proporcionado no corresponde a ninguno registrado: " + str(e)}, 500
     
 
-    #-----------------------------RUTAS PARA EXPERIENCIA APIES-------------------
+#-----------------------------RUTAS PARA EXPERIENCIA APIES-------------------
 
 
 @admin_bp.route('/create_resumes', methods=['POST'])
@@ -511,8 +511,6 @@ def create_resumes_of_all():
             logger.info("2 - Archivo recuperado. Leyendo archivo...")
             file_content = file.read()
 
-#----------------------------------------------------HASTA ACA OK / ARCHIVO ENTRANTE RECUPERADO.
-# Lanzar la función de exportar y guardar reporte en un job separado
             logger.info("3 - Llamando util get_resumes_of_all para la creación de resumenes en hilo paralelo...")
             executor.submit(run_get_resumes_of_all, file_content)
 
@@ -530,14 +528,38 @@ def run_get_resumes_of_all(file_content):
     with current_app.app_context():
         get_resumes_of_all(file_content)
 
-#---------final deprecado---------------------------
-            # # Llamamos al util que procesa el contenido del archivo y genera el archivo Excel
-            # output = get_resumes(file_content)
-
-            # # Preparar la respuesta para enviar el archivo Excel
-            # return send_file(output, download_name="resumenes.xlsx", as_attachment=True)
 
 
+@admin_bp.route('/download_resume_csv', methods=['GET'])
+def download_resume_csv():
+    try:
+        # Buscar el único archivo en la base de datos
+        archivo = AllApiesResumes.query.first()  # Como siempre habrá un único registro, usamos .first()
+
+        if not archivo:
+            return jsonify({"error": "No se encontró ningún archivo"}), 404
+
+        # Leer el archivo binario desde la base de datos
+        archivo_binario = archivo.archivo_binario
+
+        # Crear un BytesIO a partir del archivo binario
+        output = BytesIO(archivo_binario)
+
+        # Leer el archivo Excel en un DataFrame
+        df = pd.read_excel(output)
+
+        # Convertir el DataFrame a CSV
+        csv_data = df.to_csv(index=False)
+
+        # Preparar la respuesta con el CSV como descarga
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=resumen.csv"}
+        )
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error al procesar el archivo: {str(e)}"}), 500
     
 
 # ------------------------RESUMEN GIGANTE DE COMENTARIOS DE APIES-----------------------------------/////////////////////////////////////////////////////////

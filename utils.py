@@ -553,13 +553,20 @@ def get_resumes_of_all(file_content):
     # Obtener los datos binarios
     archivo_binario = output.read()
 
-    logger.info("14 - Guardando en database.")
+    logger.info("14 - Eliminando posibles registros anteriores...")
+    # Eliminar el registro anterior si existe
+    archivo_anterior = AllApiesResumes.query.first()
+    if archivo_anterior:
+        db.session.delete(archivo_anterior)
+        db.session.commit()
+
+    logger.info("15 - Guardando en database.")
     # Crear una instancia del modelo y guardar el archivo binario en la base de datos
     archivo_resumido = AllApiesResumes(archivo_binario=archivo_binario)
     db.session.add(archivo_resumido)
     db.session.commit()
 
-    logger.info("15 - Tabla lista y guardada. Proceso finalizado.")
+    logger.info("16 - Tabla lista y guardada. Proceso finalizado.")
     # Finalizar la función
     return
 
