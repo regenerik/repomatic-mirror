@@ -5,9 +5,9 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import Reporte, TodosLosReportes, Survey
+from models import Reporte, TodosLosReportes, Survey, AllApiesResumes
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 import pytz
 from dotenv import load_dotenv
@@ -412,6 +412,156 @@ def get_resumes(file_content):
     # Retornar el archivo Excel en memoria
     return output
 
+#----------------UTILS PARA OBTENER TODOS LOS RESUMENES>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+def get_resumes_of_all(file_content):
+    logger.info("4 - Util get_resumes_of_all inicializado")
+    # Leer el archivo Excel desde el contenido en memoria (file_content)
+
+    logger.info("5 - Leyendo excel y transformando fechas...")
+    df = pd.read_excel(file_content)
+
+    # Convertir la columna de fechas a tipo datetime
+    df['FECHA'] = pd.to_datetime(df['FECHA'], format='%d/%m/%Y')
+
+    logger.info("6 - Filtrando comentarios por fecha ( solo aparecen las del ultimo mes cerrado )...")
+    # Obtener el primer día del mes actual y restar un mes para el primer día del mes pasado
+    hoy = datetime.today()
+    primer_dia_mes_actual = hoy.replace(day=1)
+    primer_dia_mes_pasado = primer_dia_mes_actual - pd.DateOffset(months=1)
+
+    # Obtener el último día del mes pasado
+    ultimo_dia_mes_pasado = primer_dia_mes_actual - timedelta(days=1)
+
+    # Filtrar los comentarios entre el primer y el último día del mes pasado
+    df_filtrado = df[(df['FECHA'] >= primer_dia_mes_pasado) & (df['FECHA'] <= ultimo_dia_mes_pasado)]
+
+    logger.info("7 - Agrupando comentarios según APIES...")
+    # Crear un diccionario para agrupar los comentarios por APIES
+    comentarios_por_apies = {}
+    for apies, comentario in zip(df_filtrado['APIES'], df_filtrado['COMENTARIO']):
+        if apies not in comentarios_por_apies:
+            comentarios_por_apies[apies] = []
+        comentarios_por_apies[apies].append(comentario)
+
+    cantidad_apies = len(comentarios_por_apies)
+    logger.info(f"8 - La cantidad de Apies a ser procesadas por OPENAI es de : {cantidad_apies}, esto puede tomar un tiempo...")
+
+    # Recorrer cada APIES y crear el prompt para OpenAI
+    resultados = []
+    pedido = 0
+    for apies, comentarios in comentarios_por_apies.items():
+        prompt = f"""
+        A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
+
+        1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
+        
+        2. **Temáticas más comentadas**:  Mostrar porcentaje de cada temática mencionada sobre la totalidad. Ordena las temáticas desde la más comentada hasta la menos comentada, identificando las quejas o comentarios más recurrentes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
+
+        3. **Motivos del malestar o quejas**:  Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí. Mostrar porcentaje de comentarios de cada motivo de queja sobre la totalidad de los comentarios.  Si se mencionan nombres, citarlos en la respuesta con el motivo.
+
+        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporciona un puntaje del 1 al 10 basado en el porcentaje de comentarios positivos sobre la totalidad de comentarios en cada uno. Si no hay comentarios sobre un tópico, simplemente coloca "-".
+        
+        - **A** (Atención al cliente)
+        - **T** (Tiempo de espera)
+        - **S** (Sanitarios)
+
+        El puntaje se determina de la siguiente forma:
+        - Si entre 90% y 99% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 9, en el tópico correspondiente.
+        - Si el 100% de los comentarios totales  de uno de los 3 tópicos son positivos, el puntaje es 10, en el tópico correspondiente.
+        - Si entre 80% y el 89% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 8, en el tópico correspondiente. y así sucesivamente.
+
+        **Esta es la lista de comentarios para el análisis:**
+        {comentarios}
+
+        **Proporción y puntaje para cada tópico mencionado:**
+        1. Atención al cliente (A): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        2. Tiempo de espera (T): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+        3. Sanitarios (S): \[Porcentaje de comentarios positivos\] — Puntaje del 1 al 10.
+
+        **Código Resumen**:
+
+        ##APIES {apies}-A:5,T:Y,S:8## ( los puntajes son meramente demostrativos para entender el formato que espero de la respuesta )
+        """
+
+        try:
+            pedido = pedido + 1
+            # print(f"El promp numero: {pedido}, está en proceso...")
+            logger.info(f"El promp numero: {pedido}, está en proceso...")
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres un analista que clasifica comentarios sobre eficiencia."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            # Acceder directamente al mensaje completo como en el código funcional
+            resumen = completion.choices[0].message.content
+            resultados.append(f"APIES {apies}:\n{resumen}\n")
+
+        except Exception as e:
+            logger.info(f"Error en el promp numero: {pedido}, {str(e)}")
+            resultados.append(f"Ocurrió un error al procesar el APIES {apies}: {e}\n")
+
+    # # Retornar el resultado en lugar de guardar un archivo
+    # return "\n".join(resultados)
+    logger.info("9 - Proceso de OPENAI finalizado.")
+    logger.info("10 - Procesando resultados...")
+        # Ahora procesamos los resultados para extraer los puntajes y construir el archivo Excel
+    data = []
+
+    for resultado in resultados:
+        apies_match = re.search(r"APIES (\d+)", resultado)
+        if apies_match:
+            apies = apies_match.group(1)
+        else:
+            a_score = "-"
+            logger.info(f"No se encontró el puntaje para A en APIES {apies}")
+        # Usamos expresiones regulares para extraer los puntajes A, T, S
+        a_match = re.search(r"A:(\d+)", resultado)
+        t_match = re.search(r"T:(\d+)", resultado)
+        s_match = re.search(r"S:(\d+)", resultado)
+
+        a_score = int(a_match.group(1)) if a_match else "-"
+        t_score = int(t_match.group(1)) if t_match else "-"
+        s_score = int(s_match.group(1)) if s_match else "-"
+
+        # Agregamos una fila a nuestra lista de datos, incluyendo el resumen completo
+        data.append({
+            "APIES": apies,
+            "ATENCION AL CLIENTE": a_score,
+            "TIEMPO DE ESPERA": t_score,
+            "SANITARIOS": s_score,
+            "RESUMEN": resultado
+        })
+
+    logger.info("11 - Creando dataframe...")
+    # Crear un DataFrame con los resultados
+    df_resultados = pd.DataFrame(data)
+
+    logger.info("12 - Creando excel")
+    # Crear un archivo Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_resultados.to_excel(writer, index=False, sheet_name='Resúmenes')
+
+    # Volver al inicio del archivo para que Flask pueda leerlo
+    output.seek(0)
+
+    logger.info("13 - Transformando a Binario...")
+    # Obtener los datos binarios
+    archivo_binario = output.read()
+
+    logger.info("14 - Guardando en database.")
+    # Crear una instancia del modelo y guardar el archivo binario en la base de datos
+    archivo_resumido = AllApiesResumes(archivo_binario=archivo_binario)
+    db.session.add(archivo_resumido)
+    db.session.commit()
+
+    logger.info("15 - Tabla lista y guardada. Proceso finalizado.")
+    # Finalizar la función
+    return
 
 #----------------UTILS PARA SURVEY------------------------///////////////////////
 

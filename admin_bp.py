@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import User, Survey, TotalComents                    # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils import get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from utils import get_resumes_of_all, get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -488,6 +488,56 @@ def create_resumes():
     
     except Exception as e:
         return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
+    
+
+
+@admin_bp.route('/create_resumes_of_all', methods=['POST'])
+def create_resumes_of_all():
+    from extensions import executor
+    try:
+        logger.info("1 - Entró en la ruta create_resumes_of_all")
+        if 'file' not in request.files:
+            logger.info(f"Error al recuperar el archivo adjunto del request")
+            return jsonify({"error": "No se encontró ningún archivo en la solicitud"}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({"error": "No se seleccionó ningún archivo"}), 400
+
+
+        if file and file.filename.lower().endswith('.xlsx'):
+            # Leer el archivo directamente desde la memoria
+            logger.info("2 - Archivo recuperado. Leyendo archivo...")
+            file_content = file.read()
+
+#----------------------------------------------------HASTA ACA OK / ARCHIVO ENTRANTE RECUPERADO.
+# Lanzar la función de exportar y guardar reporte en un job separado
+            logger.info("3 - Llamando util get_resumes_of_all para la creación de resumenes en hilo paralelo...")
+            executor.submit(run_get_resumes_of_all, file_content)
+
+            return jsonify({"message": "El proceso de recuperacion del reporte ha comenzado"}), 200
+
+        else:
+            logger.info("Error - El archivo que se proporcionó no es válido. Fijate que sea un .xlsx")
+            return jsonify({"error": "El archivo no es válido. Solo se permiten archivos .xlsx"}), 400
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
+
+
+def run_get_resumes_of_all(file_content):
+    with current_app.app_context():
+        get_resumes_of_all(file_content)
+
+#---------final deprecado---------------------------
+            # # Llamamos al util que procesa el contenido del archivo y genera el archivo Excel
+            # output = get_resumes(file_content)
+
+            # # Preparar la respuesta para enviar el archivo Excel
+            # return send_file(output, download_name="resumenes.xlsx", as_attachment=True)
+
+
     
 
 # ------------------------RESUMEN GIGANTE DE COMENTARIOS DE APIES-----------------------------------/////////////////////////////////////////////////////////
