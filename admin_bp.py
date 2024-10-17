@@ -31,7 +31,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
+    if request.path in ['/','/download_resume_csv','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -542,18 +542,12 @@ def download_resume_csv():
         # Leer el archivo binario desde la base de datos
         archivo_binario = archivo.archivo_binario
 
-        # Crear un BytesIO a partir del archivo binario
-        output = BytesIO(archivo_binario)
-
-        # Leer el archivo Excel en un DataFrame
-        df = pd.read_excel(output)
-
-        # Convertir el DataFrame a CSV
-        csv_data = df.to_csv(index=False)
+        # # Convertir el binario a CSV directamente
+        # csv_data = archivo_binario.decode('utf-8') 
 
         # Preparar la respuesta con el CSV como descarga
         return Response(
-            csv_data,
+            archivo_binario,
             mimetype="text/csv",
             headers={"Content-disposition": "attachment; filename=resumen.csv"}
         )

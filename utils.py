@@ -419,10 +419,19 @@ def get_resumes_of_all(file_content):
     # Leer el archivo Excel desde el contenido en memoria (file_content)
 
     logger.info("5 - Leyendo excel y transformando fechas...")
-    df = pd.read_excel(file_content)
+    df = pd.read_excel(BytesIO(file_content))
 
     # Convertir la columna de fechas a tipo datetime
     df['FECHA'] = pd.to_datetime(df['FECHA'], format='%d/%m/%Y')
+
+    # Obtener la fecha sin hora
+    df['FECHA'] = df['FECHA'].dt.date
+
+    # tests
+    # logger.info(f"Fechas convertidas: {df['FECHA'].head()}")
+    # df_septiembre = df[df['FECHA'] == '2024-09-01']
+    # logger.info(f"Registros del 1 de septiembre: {len(df_septiembre)}")
+
 
     logger.info("6 - Filtrando comentarios por fecha ( solo aparecen las del ultimo mes cerrado )...")
     # Obtener el primer día del mes actual y restar un mes para el primer día del mes pasado
@@ -433,8 +442,15 @@ def get_resumes_of_all(file_content):
     # Obtener el último día del mes pasado
     ultimo_dia_mes_pasado = primer_dia_mes_actual - timedelta(days=1)
 
+    # Verificar fechas
+    logger.info(f"Primer día del mes pasado: {primer_dia_mes_pasado}")
+    logger.info(f"Último día del mes pasado: {ultimo_dia_mes_pasado}")
+    logger.info(f"Fechas únicas en el archivo: {df['FECHA'].unique()}")
+
     # Filtrar los comentarios entre el primer y el último día del mes pasado
-    df_filtrado = df[(df['FECHA'] >= primer_dia_mes_pasado) & (df['FECHA'] <= ultimo_dia_mes_pasado)]
+    df_filtrado = df[(df['FECHA'] >= primer_dia_mes_pasado.date()) & (df['FECHA'] <= ultimo_dia_mes_pasado.date())]
+
+    logger.info(f"Comentarios filtrados: {len(df_filtrado)}")
 
     logger.info("7 - Agrupando comentarios según APIES...")
     # Crear un diccionario para agrupar los comentarios por APIES
@@ -516,7 +532,7 @@ def get_resumes_of_all(file_content):
         if apies_match:
             apies = apies_match.group(1)
         else:
-            a_score = "-"
+            apies = "-"
             logger.info(f"No se encontró el puntaje para A en APIES {apies}")
         # Usamos expresiones regulares para extraer los puntajes A, T, S
         a_match = re.search(r"A:(\d+)", resultado)
@@ -528,23 +544,22 @@ def get_resumes_of_all(file_content):
         s_score = int(s_match.group(1)) if s_match else "-"
 
         # Agregamos una fila a nuestra lista de datos, incluyendo el resumen completo
+        resultado_escapado = resultado.replace('"', '""').replace('\n', ' ')
         data.append({
             "APIES": apies,
             "ATENCION AL CLIENTE": a_score,
             "TIEMPO DE ESPERA": t_score,
             "SANITARIOS": s_score,
-            "RESUMEN": resultado
+            "RESUMEN": resultado_escapado
         })
 
     logger.info("11 - Creando dataframe...")
     # Crear un DataFrame con los resultados
     df_resultados = pd.DataFrame(data)
 
-    logger.info("12 - Creando excel")
-    # Crear un archivo Excel en memoria
+    logger.info("12 - Creando archivo CSV")
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df_resultados.to_excel(writer, index=False, sheet_name='Resúmenes')
+    df_resultados.to_csv(output, index=False, encoding='utf-8', sep=',', quotechar='"', quoting=1)  # Guardamos como CSV
 
     # Volver al inicio del archivo para que Flask pueda leerlo
     output.seek(0)
