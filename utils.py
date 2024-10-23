@@ -469,14 +469,14 @@ def get_resumes_of_all(file_content):
     for apies, comentarios in comentarios_por_apies.items():
         prompt = f"""
         A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
-
+        (En tu respuesta, respeta los títulos como se encuentran escritos)
         1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
         
         2. **Temáticas más comentadas**:  Mostrar porcentaje de cada temática mencionada sobre la totalidad. Ordena las temáticas desde la más comentada hasta la menos comentada, identificando las quejas o comentarios más recurrentes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
 
         3. **Motivos del malestar o quejas**:  Enfócate en el **motivo** que genera el malestar o la queja, no en la queja en sí. Mostrar porcentaje de comentarios de cada motivo de queja sobre la totalidad de los comentarios.  Si se mencionan nombres, citarlos en la respuesta con el motivo.
 
-        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporciona un puntaje del 1 al 10 basado en el porcentaje de comentarios positivos sobre la totalidad de comentarios en cada uno. Si no hay comentarios sobre un tópico, simplemente coloca "-".
+        4. **Puntaje de tópicos mencionados**: Si se mencionan algunos de los siguientes tópicos, proporciona un puntaje del 1 al 10 basado en el porcentaje de comentarios positivos sobre la totalidad de comentarios en cada uno. Si no hay comentarios sobre un tópico, coloca exactamente el guion `-`, sin ceros o cualquier otro valor.
         
         - **A** (Atención al cliente)
         - **T** (Tiempo de espera)
@@ -486,6 +486,7 @@ def get_resumes_of_all(file_content):
         - Si entre 90% y 99% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 9, en el tópico correspondiente.
         - Si el 100% de los comentarios totales  de uno de los 3 tópicos son positivos, el puntaje es 10, en el tópico correspondiente.
         - Si entre 80% y el 89% de los comentarios totales de uno de los 3 tópicos son positivos, el puntaje es 8, en el tópico correspondiente. y así sucesivamente.
+        - Si hay un 0% de comentarios de un tópico, coloca exactamente el guion `-`.
 
         **Esta es la lista de comentarios para el análisis:**
         {comentarios}
@@ -497,7 +498,13 @@ def get_resumes_of_all(file_content):
 
         **Código Resumen**:
 
-        ##APIES {apies}-A:5,T:Y,S:8## ( los puntajes son meramente demostrativos para entender el formato que espero de la respuesta )
+        ## APIES {apies}-A:5,T:Y,S:8 ## ( los puntajes son meramente demostrativos para entender el formato que espero de la respuesta )
+        Este es un ejemplo de formato de respuesta de **Código Resumen** que tiene que ser respetado:  **Código Resumen**:    ## APIES 4-A:10,T:10,S:10 ##
+
+        **Porcentajes totales**:
+        Proporciona los porcentajes totales de comentarios positivos, negativos y neutros en el siguiente formato:
+        POS:xx%,NEG:xx%,NEU:xx%
+
         """
 
         try:
@@ -534,23 +541,44 @@ def get_resumes_of_all(file_content):
         else:
             apies = "-"
             logger.info(f"No se encontró el puntaje para A en APIES {apies}")
-        # Usamos expresiones regulares para extraer los puntajes A, T, S
-        a_match = re.search(r"A:(\d+)", resultado)
-        t_match = re.search(r"T:(\d+)", resultado)
-        s_match = re.search(r"S:(\d+)", resultado)
 
-        a_score = int(a_match.group(1)) if a_match else "-"
-        t_score = int(t_match.group(1)) if t_match else "-"
-        s_score = int(s_match.group(1)) if s_match else "-"
+        # Usamos expresiones regulares para extraer los puntajes A, T, S
+        a_match = re.search(r"A:(\d+|-)", resultado)
+        t_match = re.search(r"T:(\d+|-)", resultado)
+        s_match = re.search(r"S:(\d+|-)", resultado)
+
+        # Asegurarse de que los puntajes se busquen después de "APIES"
+        regex_puntajes = re.search(r"APIES.*?A:(\d+|[-]),T:(\d+|[-]|0),S:(\d+|[-]|0)", resultado)
+
+        a_score = int(regex_puntajes.group(1)) if regex_puntajes and regex_puntajes.group(1).isdigit() else "-"
+        t_score = int(regex_puntajes.group(2)) if regex_puntajes and regex_puntajes.group(2).isdigit() else "-"
+        s_score = int(regex_puntajes.group(3)) if regex_puntajes and regex_puntajes.group(3).isdigit() else "-"
+
+        # Expresión regular ajustada para capturar los porcentajes con o sin espacios
+        porcentajes_match = re.search(r"POS:\s*(\d+\.?\d*)%.*?NEG:\s*(\d+\.?\d*)%.*?NEU:\s*(\d+\.?\d*)%", resultado)
+
+        positivos = float(porcentajes_match.group(1)) if porcentajes_match else "-"
+        negativos = float(porcentajes_match.group(2)) if porcentajes_match else "-"
+        neutros = float(porcentajes_match.group(3)) if porcentajes_match else "-"
+
 
         # Agregamos una fila a nuestra lista de datos, incluyendo el resumen completo
         resultado_escapado = resultado.replace('"', '""').replace('\n', ' ')
+
+        # Extraer el resumen externo con regex
+        resumen_externo_match = re.search(r"(?i)Resumen de comentarios sin sesgos.*?:?\s*(.+?)Temáticas más comentadas", resultado, re.DOTALL)
+        resumen_externo = resumen_externo_match.group(1).strip() if resumen_externo_match else ""
+
         data.append({
             "APIES": apies,
+            "RESUMEN EXTERNO": resumen_externo,
+            "RESUMEN": resultado_escapado,
             "ATENCION AL CLIENTE": a_score,
             "TIEMPO DE ESPERA": t_score,
             "SANITARIOS": s_score,
-            "RESUMEN": resultado_escapado
+            "POSITIVOS": positivos,
+            "NEGATIVOS": negativos,
+            "NEUTROS": neutros
         })
 
     logger.info("11 - Creando dataframe...")
