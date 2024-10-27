@@ -46,3 +46,7 @@ class AllApiesResumes(db.Model):
     __tablename__ = 'archivo_resumido'
     id = db.Column(db.Integer, primary_key=True)
     archivo_binario = db.Column(db.LargeBinary)
+
+class AllCommentsWithEvaluation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    archivo_binario = db.Column(db.LargeBinary)

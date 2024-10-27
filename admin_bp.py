@@ -1,10 +1,10 @@
 from flask import Blueprint, send_file, make_response, request, jsonify, render_template, current_app, Response # Blueprint para modularizar y relacionar con app
 from flask_bcrypt import Bcrypt                                  # Bcrypt para encriptación
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity   # Jwt para tokens
-from models import User, Survey, TotalComents, AllApiesResumes   # importar tabla "User" de models
+from models import User, Survey, TotalComents, AllApiesResumes, AllCommentsWithEvaluation   # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils import get_resumes_of_all, get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
+from utils import get_evaluations_of_all, get_resumes_of_all, get_resumes_for_apies, obtener_y_guardar_survey, get_resumes, exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -31,7 +31,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/','/download_resume_csv','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
+    if request.path in ['/','/download_comments_evaluation','/all_comments_evaluation','/download_resume_csv','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -490,6 +490,7 @@ def create_resumes():
         return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
     
 
+# CREAR RESUMENES DE LAS 1600 ESTACIONES 
 
 @admin_bp.route('/create_resumes_of_all', methods=['POST'])
 def create_resumes_of_all():
@@ -529,7 +530,7 @@ def run_get_resumes_of_all(file_content):
         get_resumes_of_all(file_content)
 
 
-
+# DESCARGAR RESUMEN DE LAS 1600 ESTACIONES
 @admin_bp.route('/download_resume_csv', methods=['GET'])
 def download_resume_csv():
     try:
@@ -550,6 +551,74 @@ def download_resume_csv():
             archivo_binario,
             mimetype="text/csv",
             headers={"Content-disposition": "attachment; filename=resumen.csv"}
+        )
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error al procesar el archivo: {str(e)}"}), 500
+    
+
+
+# EVALUACION DE TODOS LOS COMENTARIOS 1 A 1 POR POSITIVIDAD O NEGATIVIDAD
+
+@admin_bp.route('/all_comments_evaluation', methods=['POST'])
+def get_evaluation_of_all():
+    from extensions import executor
+    try:
+        logger.info("1 - Entró en la ruta all_comments_evaluation")
+        if 'file' not in request.files:
+            logger.info(f"Error al recuperar el archivo adjunto del request")
+            return jsonify({"error": "No se encontró ningún archivo en la solicitud"}), 400
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({"error": "No se seleccionó ningún archivo"}), 400
+
+
+        if file and file.filename.lower().endswith('.xlsx'):
+            # Leer el archivo directamente desde la memoria
+            logger.info("2 - Archivo recuperado. Leyendo archivo...")
+            file_content = file.read()
+
+            logger.info("3 - Llamando util get_evaluations_of_all para la creación de resumenes en hilo paralelo...")
+            executor.submit(run_get_evaluations_of_all, file_content)
+
+            return jsonify({"message": "El proceso de recuperacion del reporte ha comenzado"}), 200
+
+        else:
+            logger.info("Error - El archivo que se proporcionó no es válido. Fijate que sea un .xlsx")
+            return jsonify({"error": "El archivo no es válido. Solo se permiten archivos .xlsx"}), 400
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error: {str(e)}"}), 500
+
+
+def run_get_evaluations_of_all(file_content):
+    with current_app.app_context():
+        get_evaluations_of_all(file_content)
+
+
+# DESCARGAR EVALUACION DE POSITIVIDAD DE COMENTARIOS TOTALES
+@admin_bp.route('/download_comments_evaluation', methods=['GET'])
+def download_comments_evaluation():
+    try:
+        # Buscar el único archivo en la base de datos
+        archivo = AllCommentsWithEvaluation.query.first()  # Como siempre habrá un único registro, usamos .first()
+
+        if not archivo:
+            return jsonify({"error": "No se encontró ningún archivo"}), 404
+
+        # Leer el archivo binario desde la base de datos
+        archivo_binario = archivo.archivo_binario
+
+        # # Convertir el binario a CSV directamente
+        # csv_data = archivo_binario.decode('utf-8') 
+
+        # Preparar la respuesta con el CSV como descarga
+        return Response(
+            archivo_binario,
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=all_comments_evaluation.csv"}
         )
     
     except Exception as e:

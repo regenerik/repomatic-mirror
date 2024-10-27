@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import Reporte, TodosLosReportes, Survey, AllApiesResumes
+from models import Reporte, TodosLosReportes, Survey, AllApiesResumes, AllCommentsWithEvaluation
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -846,3 +846,97 @@ def get_resumes_for_apies(apies_input, db_data):
     output.seek(0)
     logger.info("10 - Devolviendo excel a la ruta...")
     return output  # Devuelve el archivo Excel
+
+
+# GET EVALUATIONS OF ALL - EL QUE AGARRA EL BBDD CONCAT Y A CADA COMENTARIO LE HACE UNA EVALUACIÓN>>>>>
+
+
+
+def get_evaluations_of_all(file_content):
+    try:
+        logger.info("4 - Util get_evaluations_of_all inicializado")
+        # Leer el archivo Excel desde el contenido en memoria (file_content)
+        logger.info("5 - Leyendo excel y transformando fechas...")
+        df = pd.read_excel(BytesIO(file_content))
+
+        # Verificar que las columnas necesarias existan
+        if 'COMENTARIO' not in df.columns or 'APIES' not in df.columns:
+            logger.error("El archivo no contiene las columnas necesarias: 'COMENTARIO' y 'APIES'")
+            return
+
+        # Convertir la columna de fechas a tipo datetime
+        df['FECHA'] = pd.to_datetime(df['FECHA'], format='%d/%m/%Y')
+        df['FECHA'] = df['FECHA'].dt.date
+
+        # Filtrar los comentarios entre el primer y el último día del mes pasado
+        logger.info("6 - Filtrando comentarios por fecha (solo aparecen las del último mes cerrado)...")
+        hoy = datetime.today()
+        primer_dia_mes_actual = hoy.replace(day=1)
+        primer_dia_mes_pasado = primer_dia_mes_actual - pd.DateOffset(months=1)
+        ultimo_dia_mes_pasado = primer_dia_mes_actual - timedelta(days=1)
+
+        logger.info(f"Primer día del mes pasado: {primer_dia_mes_pasado}")
+        logger.info(f"Último día del mes pasado: {ultimo_dia_mes_pasado}")
+        logger.info(f"Fechas únicas en el archivo: {df['FECHA'].unique()}")
+
+        df_filtrado = df[(df['FECHA'] >= primer_dia_mes_pasado.date()) & (df['FECHA'] <= ultimo_dia_mes_pasado.date())]
+
+        logger.info(f"Comentarios filtrados: {len(df_filtrado)}")
+
+        # Evaluar cada comentario con OpenAI y agregar columna 'SENTIMIENTO'
+        logger.info("7 - Evaluando comentarios con OpenAI...")
+        for idx, row in df_filtrado.iterrows():
+            comentario = row['COMENTARIO']
+            apies = row['APIES']
+            prompt = f"Clasifica el siguiente comentario como 'positivo', 'negativo' o 'no clasificable'. Si es 'no clasificable', no incluyas las palabras 'positivo' o 'negativo' en tu respuesta: {comentario}"
+
+            try:
+                logger.info(f"El prompt para el comentario {idx} está en proceso...")
+                completion = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "Eres un analista que clasifica comentarios segun el sentimiento de los clientes."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+
+                resumen = completion.choices[0].message.content.lower()
+
+                if "positivo" in resumen:
+                    df_filtrado.at[idx, 'SENTIMIENTO'] = "positivo"
+                elif "negativo" in resumen:
+                    df_filtrado.at[idx, 'SENTIMIENTO'] = "negativo"
+                else:
+                    df_filtrado.at[idx, 'SENTIMIENTO'] = "-"
+
+            except Exception as e:
+                logger.info(f"Error al procesar el comentario {idx}, {str(e)}")
+                df_filtrado.at[idx, 'SENTIMIENTO'] = "-"
+
+        # Guardar el DataFrame actualizado en formato binario
+        logger.info("11 - Creando dataframe actualizado con sentimiento...")
+        output = BytesIO()
+        df_filtrado.to_csv(output, index=False, encoding='utf-8', sep=',', quotechar='"', quoting=1)
+        output.seek(0)
+        archivo_binario = output.read()
+
+        # Cerrar el BytesIO
+        output.close()
+
+        logger.info("14 - Eliminando posibles registros anteriores...")
+        archivo_anterior = AllCommentsWithEvaluation.query.first()
+        if archivo_anterior:
+            db.session.delete(archivo_anterior)
+            db.session.commit()
+
+        logger.info("15 - Guardando en database.")
+        archivo_resumido = AllCommentsWithEvaluation(archivo_binario=archivo_binario)
+        db.session.add(archivo_resumido)
+        db.session.commit()
+
+        logger.info("16 - Tabla lista y guardada. Proceso finalizado.")
+        return
+
+    except Exception as e:
+        logger.error(f"Error en el proceso general: {str(e)}")
+        return
