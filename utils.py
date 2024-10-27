@@ -885,6 +885,10 @@ def get_evaluations_of_all(file_content):
 
         # Evaluar cada comentario con OpenAI y agregar columna 'SENTIMIENTO'
         logger.info("7 - Evaluando comentarios con OpenAI...")
+        
+        # Convertir la columna 'SENTIMIENTO' a str antes de empezar el bucle
+        df_filtrado['SENTIMIENTO'] = df_filtrado['SENTIMIENTO'].astype(str)
+
         for idx, row in df_filtrado.iterrows():
             comentario = row['COMENTARIO']
             apies = row['APIES']
