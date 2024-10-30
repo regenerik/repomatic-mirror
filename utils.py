@@ -1137,8 +1137,12 @@ def process_missing_sentiment(comments_df):
 
             logger.info("Filas actualizadas en la tabla original con el merge.")
         
-            # Guardar el DataFrame actualizado en formato binario (como CSV) solo al final del proceso
-            comments_df = df_merged.to_csv(index=False, encoding='utf-8', sep=',', quotechar='"', quoting=1)
+            # Guardar el DataFrame actualizado como un archivo binario para la siguiente iteración
+            output = BytesIO()
+            df_merged.to_csv(output, index=False, encoding='utf-8', sep=',', quotechar='"', quoting=1)
+            output.seek(0)
+            comments_df = output.read()  # Convertirlo nuevamente en binario para la próxima iteración
+
 
         except Exception as e:
             logger.error(f"Error durante el merge: {e}")
