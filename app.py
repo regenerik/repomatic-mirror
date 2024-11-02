@@ -3,8 +3,12 @@ from flask_bcrypt import Bcrypt  # para encriptar y comparar
 from flask import Flask, request, jsonify # Para endpoints
 from flask_sqlalchemy import SQLAlchemy  # Para rutas
 from flask_jwt_extended import  JWTManager, create_access_token, jwt_required, get_jwt_identity
-from admin_bp import admin_bp                       # Acá importamos rutas admin
+from routes.admin_bp import admin_bp                       # Acá importamos rutas admin
 from public_bp import public_bp                     # Acá importamos rutas public
+from routes.rescate_reportes_bp import rescate_reportes_bp
+from routes.encuestas_cursos_bp import encuestas_cursos_bp
+from routes.resumen_comentarios_apies_bp import resumen_comentarios_apies_bp
+from routes.clasifica_comentarios_individuales_bp import clasifica_comentarios_individuales_bp
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
@@ -34,7 +38,13 @@ app.register_blueprint(admin_bp)  # poder registrarlo como un blueprint ( parte 
 
 app.register_blueprint(public_bp, url_prefix='/public')  # blueprint public_bp
 
+app.register_blueprint(rescate_reportes_bp, url_prefix='/') 
 
+app.register_blueprint(encuestas_cursos_bp, url_prefix='/') 
+
+app.register_blueprint(resumen_comentarios_apies_bp, url_prefix='/') 
+
+app.register_blueprint(clasifica_comentarios_individuales_bp, url_prefix='/')  
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')

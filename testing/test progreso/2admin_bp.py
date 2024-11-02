@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, jwt_required
 from models import User
 from database import db
 from datetime import timedelta
-from utils import exportar_reporte_excel
+from routes.utils import exportar_reporte_excel
 import threading
 import time
 
