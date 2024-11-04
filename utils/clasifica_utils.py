@@ -332,6 +332,9 @@ def process_negative_comments(file_content):
     logger.info("Reemplazando filas en la tabla original con los resultados reevaluados...")
     df.update(df_negativos[['ID', 'SENTIMIENTO']])
 
+    # Llamar a la función hermana para procesar los "inválidos"
+    df = process_invalid_comments(df)
+
     # Guardar el DataFrame actualizado en la base de datos o como archivo binario
     logger.info("Guardando DataFrame actualizado en la tabla FilteredExperienceComments...")
     output = BytesIO()
@@ -352,3 +355,134 @@ def process_negative_comments(file_content):
 
     logger.info("Archivo actualizado guardado exitosamente en la tabla FilteredExperienceComments.")
     return
+
+def process_invalid_comments(df):
+    logger.info("Iniciando el proceso de corrección de comentarios inválidos...")
+
+    # Filtrar comentarios con sentimiento inválido
+    df_invalidos = df[df['SENTIMIENTO'] == 'invalido']
+
+    # Cantidad total de registros inválidos
+    total_invalidos = len(df_invalidos)
+    logger.info(f"Total de registros en la tabla de comentarios inválidos: {total_invalidos}")
+
+    # Obtener las APIES únicas de los comentarios inválidos
+    apies_unicas = df_invalidos['APIES'].unique()
+    logger.info(f"Total de APIES a procesar para comentarios inválidos: {len(apies_unicas)}")
+
+    # Contador para llevar el seguimiento de actualizaciones
+    actualizaciones_realizadas = 0
+
+    for apies_input in apies_unicas:
+        logger.info(f"Procesando APIES {apies_input} para comentarios inválidos...")
+
+        # Filtrar comentarios de la APIES actual y crear un diccionario {ID: Comentario}
+        comentarios_filtrados = df_invalidos[df_invalidos['APIES'] == apies_input][['ID', 'COMENTARIO']]
+        comentarios_dict = dict(zip(comentarios_filtrados['ID'], comentarios_filtrados['COMENTARIO']))
+
+        # Crear el prompt para OpenAI
+        prompt = "Para cada comentario a continuación, responde SOLO con el formato 'ID-{id}: positivo', 'ID-{id}: negativo' o 'ID-{id}: invalido'. Si el comentario no es claro o no tiene un sentimiento definido, responde 'invalido'.Si el comentario contiene aluciones a positividad como ':)','muy bueno','completo','lujo','todo bien','excelente','muy bien','mb' u otros emojis positivos o comentarios que tengan algun tipo de aprovación, serán clasificados como 'positivo'.El comentario podria encontrarse también despues de uno o dos saltos de linea, revisar bien el texto. Necesitamos evitar a toda costa falsos negativos. Aquí están los comentarios:\n"
+        for comentario_id, comentario in comentarios_dict.items():
+            prompt += f"ID-{comentario_id}: {comentario}\n"
+
+        # Hacer el pedido a OpenAI
+        try:
+            logger.info(f"Enviando solicitud a OpenAI para APIES {apies_input} (corrección de inválidos)...")
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres un analista que clasifica comentarios por sentimiento."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            respuesta = completion.choices[0].message.content
+            logger.info(f"Respuesta obtenida para APIES {apies_input} (corrección de inválidos)")
+
+            # Parsear la respuesta para extraer el ID y el sentimiento
+            matches = re.findall(r'ID-(\d+):\s*(positivo|negativo|invalido)', respuesta)
+
+            # Actualizar la columna 'SENTIMIENTO' en df_invalidos usando los IDs
+            for comentario_id, sentimiento in matches:
+                df_invalidos.loc[df_invalidos['ID'] == int(comentario_id), 'SENTIMIENTO'] = sentimiento
+                actualizaciones_realizadas += 1  # Incrementamos el contador de actualizaciones
+
+        except Exception as e:
+            logger.error(f"Error al procesar el APIES {apies_input} (corrección de inválidos): {e}")
+
+    # Logueamos la cantidad total de actualizaciones realizadas
+    logger.info(f"Total de actualizaciones realizadas en los sentimientos inválidos: {actualizaciones_realizadas}, de el total de inválidos: {total_invalidos}")
+
+    # Reemplazar las filas correspondientes en el DataFrame original
+    df.update(df_invalidos[['ID', 'SENTIMIENTO']])
+
+    logger.info("Corrección de comentarios inválidos finalizada.")
+    return df
+
+
+
+
+
+
+
+# PROXIMAMENTE UTIL PARA COMPARACION DE COMENTARIOS HUMANOS VS OPENAI ( FALTA NORMALIZAR LOS POSITIVOS ): 
+
+# def comparar_comentarios(humanos_path: str, openai_path: str) -> pd.DataFrame:
+#     """
+#     Compara comentarios entre dos archivos (humanos y openai) y genera una tabla de resultados.
+
+#     Argumentos:
+#         humanos_path (str): Ruta del archivo de entrada de humanos (formato .xlsx).
+#         openai_path (str): Ruta del archivo de entrada de openai (formato .csv).
+
+#     Retorna:
+#         pd.DataFrame: DataFrame con columnas ['COMENTARIO', 'HUMANO', 'OPENAI'] mostrando los comentarios, la
+#                       clasificación manual y la clasificación de OpenAI.
+#     """
+    
+#     # Cargar el archivo de humanos (Excel)
+#     humanos_df = pd.read_excel(humanos_path)
+    
+#     # Cargar el archivo de OpenAI (CSV)
+#     openai_df = pd.read_csv(openai_path, delimiter=',', encoding='ISO-8859-1')
+    
+#     # Renombrar columnas para facilidad de uso
+#     humanos_df = humanos_df.rename(columns={
+#         'Comentario para re-clasificar (Transcribí el comentario que debemos analizar nuevamente)': 'Comentario',
+#         'Nueva clasificación del comentario (Colocá la clasificación que consideras que debería ser la correcta)': 'Humano'
+#     })
+#     openai_df = openai_df.rename(columns={'COMENTARIO': 'Comentario', 'SENTIMIENTO': 'OpenAI'})
+    
+#     # Normalizar comentarios y clasificaciones para evitar errores de formato y diferencias de mayúsculas/minúsculas
+#     humanos_df['Comentario'] = humanos_df['Comentario'].astype(str).str.strip().str.lower()
+#     openai_df['Comentario'] = openai_df['Comentario'].astype(str).str.strip().str.lower()
+    
+#     # Hacer un merge entre ambos DataFrames para obtener los comentarios que coinciden y sus clasificaciones
+#     resultado_df = pd.merge(humanos_df[['Comentario', 'Humano']], openai_df[['Comentario', 'OpenAI']], on='Comentario', how='inner')
+    
+#     return resultado_df
+
+# y su ruta : 
+# @app.route('/comparar_comentarios', methods=['POST'])
+# def upload_files():
+#     # Verificar si los archivos fueron enviados en la solicitud
+#     if 'humanos' not in request.files or 'openai' not in request.files:
+#         return jsonify({"error": "Faltan archivos 'humanos' y/o 'openai'"}), 400
+
+#     humanos_file = request.files['humanos']
+#     openai_file = request.files['openai']
+
+#     # Leer los archivos como objetos en memoria para usarlos con pandas
+#     humanos_df = pd.read_excel(humanos_file)
+#     openai_df = pd.read_csv(openai_file, delimiter=',', encoding='ISO-8859-1')
+    
+#     # Llamar a la función de comparación
+#     resultado_df = comparar_comentarios(humanos_df, openai_df)
+
+#     # Guardar el resultado en un archivo Excel en memoria
+#     output = BytesIO()
+#     resultado_df.to_excel(output, index=False)
+#     output.seek(0)
+
+#     # Enviar el archivo resultante como descarga
+#     return send_file(output, download_name='resultado_comparacion.xlsx', as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
