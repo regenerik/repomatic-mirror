@@ -335,7 +335,7 @@ def process_negative_comments(file_content):
     # Guardar el DataFrame actualizado en la base de datos o como archivo binario
     logger.info("Guardando DataFrame actualizado en la tabla FilteredExperienceComments...")
     output = BytesIO()
-    df.to_excel(output, index=False)
+    df.to_csv(output, index=False)
     output.seek(0)
     archivo_binario = output.read()
 
