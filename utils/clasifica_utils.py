@@ -260,3 +260,95 @@ def process_missing_sentiment(comments_df):
     logger.info("Archivo guardado exitosamente en la tabla FilteredExperienceComments.")
 
     return
+
+
+def process_negative_comments(file_content):
+    logger.info("Iniciando el proceso de reevaluación de sentimientos negativos...")
+
+    # Leer el archivo desde los bytes recibidos
+    df = pd.read_csv(BytesIO(file_content))
+    logger.info(f"DataFrame cargado con {len(df)} registros.")
+    
+    # Filtrar comentarios con sentimiento negativo
+    df_negativos = df[df['SENTIMIENTO'] == 'negativo']
+
+    # Cantidad total de registros de la tabla de negativos
+    total_negativos = len(df_negativos)
+    logger.info(f"Total de registros en la tabla de comentarios negativos: {total_negativos}")
+
+    # Crear el archivo paralelo con todos los comentarios negativos
+    output_negative_comments = BytesIO()
+    df_negativos.to_excel(output_negative_comments, index=False)
+    output_negative_comments.seek(0)
+    
+    # Obtener las APIES únicas de los comentarios negativos
+    apies_unicas = df_negativos['APIES'].unique()
+    logger.info(f"Total de APIES a procesar: {len(apies_unicas)}")
+
+    # Contador para llevar el seguimiento de actualizaciones
+    actualizaciones_realizadas = 0
+
+    for apies_input in apies_unicas:
+        logger.info(f"Procesando APIES {apies_input}...")
+
+        # Filtrar comentarios de la APIES actual y crear un diccionario {ID: Comentario}
+        comentarios_filtrados = df_negativos[df_negativos['APIES'] == apies_input][['ID', 'COMENTARIO']]
+        comentarios_dict = dict(zip(comentarios_filtrados['ID'], comentarios_filtrados['COMENTARIO']))
+
+        # Crear el prompt para OpenAI
+        prompt = "Para cada comentario a continuación, responde SOLO con el formato 'ID-{id}: positivo', 'ID-{id}: negativo' o 'ID-{id}: invalido'. Si el comentario no es claro o no tiene un sentimiento definido, responde 'invalido'.Si el comentario contiene aluciones a positividad como ':)','muy bueno','muy bien',u otros emojis positivos o comentarios que tengan algun tipo de aprovación, serán clasificados como 'positivo'.Necesitamos evitar a toda costa falsos negativos. Aquí están los comentarios:\n"
+        for comentario_id, comentario in comentarios_dict.items():
+            prompt += f"ID-{comentario_id}: {comentario}\n"
+
+        # Hacer el pedido a OpenAI
+        try:
+            logger.info(f"Enviando solicitud a OpenAI para APIES {apies_input}...")
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres un analista que clasifica comentarios por sentimiento."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            respuesta = completion.choices[0].message.content
+            logger.info(f"Respuesta obtenida para APIES {apies_input}")
+
+            # Parsear la respuesta para extraer el ID y el sentimiento
+            matches = re.findall(r'ID-(\d+):\s*(positivo|negativo|invalido)', respuesta)
+
+            # Actualizar la columna 'SENTIMIENTO' en df_negativos usando los IDs
+            for comentario_id, sentimiento in matches:
+                df_negativos.loc[df_negativos['ID'] == int(comentario_id), 'SENTIMIENTO'] = sentimiento
+                actualizaciones_realizadas += 1  # Incrementamos el contador de actualizaciones
+
+        except Exception as e:
+            logger.error(f"Error al procesar el APIES {apies_input}: {e}")
+
+    # Logueamos la cantidad total de actualizaciones realizadas
+    logger.info(f"Total de actualizaciones realizadas en los sentimientos: {actualizaciones_realizadas}, de el total de negativos:{total_negativos}")
+
+    # Reemplazar las filas correspondientes en la tabla original
+    logger.info("Reemplazando filas en la tabla original con los resultados reevaluados...")
+    df.update(df_negativos[['ID', 'SENTIMIENTO']])
+
+    # Guardar el DataFrame actualizado en la base de datos o como archivo binario
+    logger.info("Guardando DataFrame actualizado en la tabla FilteredExperienceComments...")
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+    archivo_binario = output.read()
+
+    # Eliminar cualquier registro anterior en la tabla FilteredExperienceComments
+    archivo_anterior = FilteredExperienceComments.query.first()
+    if archivo_anterior:
+        db.session.delete(archivo_anterior)
+        db.session.commit()
+
+    # Crear un nuevo registro y guardar el archivo binario
+    archivo_resumido = FilteredExperienceComments(archivo_binario=archivo_binario)
+    db.session.add(archivo_resumido)
+    db.session.commit()
+
+    logger.info("Archivo actualizado guardado exitosamente en la tabla FilteredExperienceComments.")
+    return
