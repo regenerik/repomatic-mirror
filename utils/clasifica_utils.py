@@ -296,7 +296,7 @@ def process_negative_comments(file_content):
         comentarios_dict = dict(zip(comentarios_filtrados['ID'], comentarios_filtrados['COMENTARIO']))
 
         # Crear el prompt para OpenAI
-        prompt = "Para cada comentario a continuación, responde SOLO con el formato 'ID-{id}: positivo', 'ID-{id}: negativo' o 'ID-{id}: invalido'. Si el comentario no es claro o no tiene un sentimiento definido, responde 'invalido'.Si el comentario contiene aluciones a positividad como ':)','muy bueno','muy bien',u otros emojis positivos o comentarios que tengan algun tipo de aprovación, serán clasificados como 'positivo'.Necesitamos evitar a toda costa falsos negativos. Aquí están los comentarios:\n"
+        prompt = "Para cada comentario a continuación, responde SOLO con el formato 'ID-{id}: positivo', 'ID-{id}: negativo' o 'ID-{id}: invalido'.Si el comentario solamente tiene la palabra 'no', '0' o 'ne', responde 'invalido'. Si el comentario menciona a 'milei' o 'privaticen', responde 'invalido'. Si el comentario no es claro o no tiene un sentimiento definido, responde 'invalido'.Si el comentario contiene aluciones a positividad como ':)','muy bueno','muy bien',u otros emojis positivos o comentarios que tengan algun tipo de aprovación, serán clasificados como 'positivo'.Necesitamos evitar a toda costa falsos negativos. Aquí están los comentarios:\n"
         for comentario_id, comentario in comentarios_dict.items():
             prompt += f"ID-{comentario_id}: {comentario}\n"
 
@@ -427,62 +427,36 @@ def process_invalid_comments(df):
 
 # PROXIMAMENTE UTIL PARA COMPARACION DE COMENTARIOS HUMANOS VS OPENAI ( FALTA NORMALIZAR LOS POSITIVOS ): 
 
-# def comparar_comentarios(humanos_path: str, openai_path: str) -> pd.DataFrame:
-#     """
-#     Compara comentarios entre dos archivos (humanos y openai) y genera una tabla de resultados.
+# Modificar la función para aceptar DataFrames directamente
+def comparar_comentarios(humanos_df: pd.DataFrame, openai_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compara comentarios entre dos DataFrames (humanos y openai) y genera una tabla de resultados.
 
-#     Argumentos:
-#         humanos_path (str): Ruta del archivo de entrada de humanos (formato .xlsx).
-#         openai_path (str): Ruta del archivo de entrada de openai (formato .csv).
+    Argumentos:
+        humanos_df (pd.DataFrame): DataFrame con los comentarios de humanos.
+        openai_df (pd.DataFrame): DataFrame con los comentarios de OpenAI.
 
-#     Retorna:
-#         pd.DataFrame: DataFrame con columnas ['COMENTARIO', 'HUMANO', 'OPENAI'] mostrando los comentarios, la
-#                       clasificación manual y la clasificación de OpenAI.
-#     """
+    Retorna:
+        pd.DataFrame: DataFrame con columnas ['COMENTARIO', 'HUMANO', 'OPENAI'] mostrando los comentarios, la
+                      clasificación manual y la clasificación de OpenAI.
+    """
     
-#     # Cargar el archivo de humanos (Excel)
-#     humanos_df = pd.read_excel(humanos_path)
+    # Renombrar columnas para facilidad de uso
+    humanos_df = humanos_df.rename(columns={
+        'Comentario para re-clasificar (Transcribí el comentario que debemos analizar nuevamente)': 'Comentario',
+        'Nueva clasificación del comentario (Colocá la clasificación que consideras que debería ser la correcta)': 'Humano'
+    })
+    openai_df = openai_df.rename(columns={'COMENTARIO': 'Comentario', 'SENTIMIENTO': 'OpenAI'})
     
-#     # Cargar el archivo de OpenAI (CSV)
-#     openai_df = pd.read_csv(openai_path, delimiter=',', encoding='ISO-8859-1')
-    
-#     # Renombrar columnas para facilidad de uso
-#     humanos_df = humanos_df.rename(columns={
-#         'Comentario para re-clasificar (Transcribí el comentario que debemos analizar nuevamente)': 'Comentario',
-#         'Nueva clasificación del comentario (Colocá la clasificación que consideras que debería ser la correcta)': 'Humano'
-#     })
-#     openai_df = openai_df.rename(columns={'COMENTARIO': 'Comentario', 'SENTIMIENTO': 'OpenAI'})
-    
-#     # Normalizar comentarios y clasificaciones para evitar errores de formato y diferencias de mayúsculas/minúsculas
-#     humanos_df['Comentario'] = humanos_df['Comentario'].astype(str).str.strip().str.lower()
-#     openai_df['Comentario'] = openai_df['Comentario'].astype(str).str.strip().str.lower()
-    
-#     # Hacer un merge entre ambos DataFrames para obtener los comentarios que coinciden y sus clasificaciones
-#     resultado_df = pd.merge(humanos_df[['Comentario', 'Humano']], openai_df[['Comentario', 'OpenAI']], on='Comentario', how='inner')
-    
-#     return resultado_df
+    # Normalizar comentarios y clasificaciones para evitar errores de formato y diferencias de mayúsculas/minúsculas
+    humanos_df['Comentario'] = humanos_df['Comentario'].astype(str).str.strip().str.lower()
+    openai_df['Comentario'] = openai_df['Comentario'].astype(str).str.strip().str.lower()
 
-# y su ruta : 
-# @app.route('/comparar_comentarios', methods=['POST'])
-# def upload_files():
-#     # Verificar si los archivos fueron enviados en la solicitud
-#     if 'humanos' not in request.files or 'openai' not in request.files:
-#         return jsonify({"error": "Faltan archivos 'humanos' y/o 'openai'"}), 400
-
-#     humanos_file = request.files['humanos']
-#     openai_file = request.files['openai']
-
-#     # Leer los archivos como objetos en memoria para usarlos con pandas
-#     humanos_df = pd.read_excel(humanos_file)
-#     openai_df = pd.read_csv(openai_file, delimiter=',', encoding='ISO-8859-1')
+    # Eliminar duplicados en la columna 'Comentario' para evitar combinaciones innecesarias
+    humanos_df = humanos_df.drop_duplicates(subset=['Comentario'])
+    openai_df = openai_df.drop_duplicates(subset=['Comentario'])
     
-#     # Llamar a la función de comparación
-#     resultado_df = comparar_comentarios(humanos_df, openai_df)
-
-#     # Guardar el resultado en un archivo Excel en memoria
-#     output = BytesIO()
-#     resultado_df.to_excel(output, index=False)
-#     output.seek(0)
-
-#     # Enviar el archivo resultante como descarga
-#     return send_file(output, download_name='resultado_comparacion.xlsx', as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    # Hacer un merge entre ambos DataFrames para obtener los comentarios que coinciden y sus clasificaciones
+    resultado_df = pd.merge(humanos_df[['Comentario', 'Humano']], openai_df[['Comentario', 'OpenAI']], on='Comentario', how='inner')
+    
+    return resultado_df

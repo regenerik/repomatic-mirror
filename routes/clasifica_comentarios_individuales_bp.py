@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from models import AllCommentsWithEvaluation,FilteredExperienceComments   # importar tabla "User" de models
 from database import db                                          # importa la db desde database.py
 from datetime import timedelta, datetime                         # importa tiempo especifico para rendimiento de token válido
-from utils.clasifica_utils import process_missing_sentiment, get_evaluations_of_all, process_negative_comments
+from utils.clasifica_utils import process_missing_sentiment, get_evaluations_of_all, process_negative_comments, comparar_comentarios
 from logging_config import logger
 import os                                                        # Para datos .env
 from dotenv import load_dotenv                                   # Para datos .env
@@ -29,7 +29,7 @@ def check_api_key(api_key):
 def authorize():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/evaluate_negative_comments','/test_clasifica_comentarios_individuales_bp','/','/correccion_campos_vacios','/descargar_positividad_corregida','/download_comments_evaluation','/all_comments_evaluation','/download_resume_csv','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
+    if request.path in ['/comparar_comentarios','/evaluate_negative_comments','/test_clasifica_comentarios_individuales_bp','/','/correccion_campos_vacios','/descargar_positividad_corregida','/download_comments_evaluation','/all_comments_evaluation','/download_resume_csv','/create_resumes_of_all','/descargar_excel','/create_resumes', '/reportes_disponibles', '/create_user', '/login', '/users','/update_profile','/update_profile_image','/update_admin']:
         return
     api_key = request.headers.get('Authorization')
     if not api_key or not check_api_key(api_key):
@@ -83,7 +83,7 @@ def run_get_evaluations_of_all(file_content):
         get_evaluations_of_all(file_content)
 
 
-# DEPRECADO - DESCARGAR EVALUACION DE POSITIVIDAD DE COMENTARIOS TOTALES / DESCARGA UNA VERSIÓN SIN CORRECCIONES de "AllCommentsWithEvaluation"
+#  ( PASO 2 ) DESCARGAR PRIMERA EVALUACION DE POSITIVIDAD DE COMENTARIOS TOTALES / DESCARGA UNA VERSIÓN SIN CORRECCIONES de "AllCommentsWithEvaluation"
 @clasifica_comentarios_individuales_bp.route('/download_comments_evaluation', methods=['GET'])
 def download_comments_evaluation():
     try:
@@ -110,7 +110,7 @@ def download_comments_evaluation():
         return jsonify({"error": f"Se produjo un error al procesar el archivo: {str(e)}"}), 500
 
 
-#  ( PASO 2 ) CORRECCIÓN DE CAMPOS VACIOS - Corrige en loop todos los campos vacios (aprox 8 loops )Es necesario enviarle el archivo generado en el paso 1. 
+#  ( PASO 3 ) CORRECCIÓN DE CAMPOS VACIOS - Corrige en loop todos los campos vacios (aprox 8 loops )Es necesario enviarle el archivo generado en el paso 1 y decargado en paso 2. 
 @clasifica_comentarios_individuales_bp.route('/correccion_campos_vacios', methods=['POST'])
 def missing_sentiment():
     from extensions import executor
@@ -147,31 +147,9 @@ def run_process_missing_sentiment(file_content):
     with current_app.app_context():
         process_missing_sentiment(file_content)
 
-#  ( PASO 3 ) DESCARGAR EVALUACION DE POSITIVIDAD DE COMENTARIOS TOTALES ( CON CORRECCIONES DE CAMPOS VACIOS )
-@clasifica_comentarios_individuales_bp.route('/descargar_positividad_corregida', methods=['GET'])
-def descargar_positividad_corregida():
-    try:
-        # Buscar el único archivo en la base de datos
-        archivo = FilteredExperienceComments.query.first()  # Como siempre habrá un único registro, usamos .first()
 
-        if not archivo:
-            return jsonify({"error": "No se encontró ningún archivo"}), 404
 
-        # Leer el archivo binario desde la base de datos
-        archivo_binario = archivo.archivo_binario
-
-        # Preparar la respuesta con el CSV como descarga
-        return Response(
-            archivo_binario,
-            mimetype="text/csv",
-            headers={"Content-disposition": "attachment; filename=all_comments_evaluation_fixed.csv"}
-        )
-    
-    except Exception as e:
-        return jsonify({"error": f"Se produjo un error al procesar el archivo: {str(e)}"}), 500
-    
-
-# PASO 4 - CORRECCION DE CAMPOS NEGATIVOS
+# PASO 4 - CORRECCION DE CAMPOS NEGATIVOS E INVALIDOS
 
 @clasifica_comentarios_individuales_bp.route('/evaluate_negative_comments', methods=['POST'])
 def evaluate_negative_comments():
@@ -208,3 +186,57 @@ def evaluate_negative_comments():
 def run_process_negative_comments(file_content):
     with current_app.app_context():
         process_negative_comments(file_content)
+
+
+#  ( PASO 5 ) DESCARGAR EVALUACION DE SENTIMIENTO DE COMENTARIOS TOTALES ( CON CORRECCIONES DE: CAMPOS VACIOS / negativos / invalidos )
+@clasifica_comentarios_individuales_bp.route('/descargar_positividad_corregida', methods=['GET'])
+def descargar_positividad_corregida():
+    try:
+        # Buscar el único archivo en la base de datos
+        archivo = FilteredExperienceComments.query.first()  # Como siempre habrá un único registro, usamos .first()
+
+        if not archivo:
+            return jsonify({"error": "No se encontró ningún archivo"}), 404
+
+        # Leer el archivo binario desde la base de datos
+        archivo_binario = archivo.archivo_binario
+
+        # Preparar la respuesta con el CSV como descarga
+        return Response(
+            archivo_binario,
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=all_comments_evaluation_fixed.csv"}
+        )
+    
+    except Exception as e:
+        return jsonify({"error": f"Se produjo un error al procesar el archivo: {str(e)}"}), 500
+    
+#---------------------------------------------FIN DEL PROCESO------------------------------------------------
+
+
+
+# Comparacion simple evaluacion de sentimiento de jefes de estacion contra evaluacion de sentimiento openai:
+
+@clasifica_comentarios_individuales_bp.route('/comparar_comentarios', methods=['POST'])
+def upload_files():
+    # Verificar si los archivos fueron enviados en la solicitud
+    if 'humanos' not in request.files or 'openai' not in request.files:
+        return jsonify({"error": "Faltan archivos 'humanos' y/o 'openai'"}), 400
+
+    humanos_file = request.files['humanos']
+    openai_file = request.files['openai']
+
+    # Leer los archivos como objetos en memoria para usarlos con pandas
+    humanos_df = pd.read_excel(humanos_file)
+    openai_df = pd.read_csv(openai_file, delimiter=',', encoding='ISO-8859-1')
+    
+    # Llamar a la función de comparación pasándoles los DataFrames
+    resultado_df = comparar_comentarios(humanos_df, openai_df)
+
+    # Guardar el resultado en un archivo CSV en memoria
+    output = BytesIO()
+    resultado_df.to_csv(output, index=False)
+    output.seek(0)
+
+    # Enviar el archivo resultante como descarga
+    return send_file(output, download_name='resultado_comparacion.csv', as_attachment=True, mimetype='text/csv')
