@@ -26,6 +26,7 @@ client = openai.OpenAI(
 
 # MODELO FINAL PARA CAPTURA DE EVALUACIÓN DE POSITIVIDAD DE COMENTARIOS
 
+# Captura inicial de sentimientos de la tabla totales:
 def get_evaluations_of_all(file_content):
     logger.info("4 - Util get_evaluations_of_all inicializado")
     
@@ -106,8 +107,8 @@ def get_evaluations_of_all(file_content):
 
     logger.info("Archivo guardado exitosamente en la tabla AllCommentsWithEvaluation.")
     return
-# Corrección de campos vacios en SENTIMIENTO de forma automatica hasta rellenarlos todos con un while:
 
+# Corrección de campos vacios en SENTIMIENTO de forma automatica hasta rellenarlos todos con un while:
 def process_missing_sentiment(comments_df):
     logger.info("Iniciando el proceso de corrección de sentimientos...")
 
@@ -261,7 +262,7 @@ def process_missing_sentiment(comments_df):
 
     return
 
-
+# Corrección de los comentarios negativos para mejorarlos ( pero anexado con el de invalidos en conjutno ):
 def process_negative_comments(file_content):
     logger.info("Iniciando el proceso de reevaluación de sentimientos negativos...")
 
@@ -356,6 +357,7 @@ def process_negative_comments(file_content):
     logger.info("Archivo actualizado guardado exitosamente en la tabla FilteredExperienceComments.")
     return
 
+# Corrección de los comentarios invalidos para mejorarlos ( es parte del flow del util anterior )
 def process_invalid_comments(df):
     logger.info("Iniciando el proceso de corrección de comentarios inválidos...")
 
