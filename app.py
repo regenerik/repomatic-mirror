@@ -8,6 +8,7 @@ from public_bp import public_bp                     # Acá importamos rutas publ
 from routes.rescate_reportes_bp import rescate_reportes_bp
 from routes.encuestas_cursos_bp import encuestas_cursos_bp
 from routes.resumen_comentarios_apies_bp import resumen_comentarios_apies_bp
+from routes.diarios_clasifica_sentimientos_bp import diarios_clasifica_sentimientos_bp
 from routes.clasifica_comentarios_individuales_bp import clasifica_comentarios_individuales_bp
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
@@ -44,7 +45,9 @@ app.register_blueprint(encuestas_cursos_bp, url_prefix='/')
 
 app.register_blueprint(resumen_comentarios_apies_bp, url_prefix='/') 
 
-app.register_blueprint(clasifica_comentarios_individuales_bp, url_prefix='/')  
+app.register_blueprint(clasifica_comentarios_individuales_bp, url_prefix='/')
+
+app.register_blueprint(diarios_clasifica_sentimientos_bp, url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')

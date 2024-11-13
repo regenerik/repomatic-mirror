@@ -55,3 +55,8 @@ class AllCommentsWithEvaluation(db.Model):
 class FilteredExperienceComments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     archivo_binario = db.Column(db.LargeBinary)
+
+
+class DailyCommentsWithEvaluation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    archivo_binario = db.Column(db.LargeBinary)
