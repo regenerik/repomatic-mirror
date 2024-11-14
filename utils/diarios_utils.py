@@ -85,6 +85,13 @@ def get_evaluations_of_a_day(file_content):
         except Exception as e:
             logger.error(f"Error al procesar el APIES {apies_input}: {e}")
 
+    # Agregar la clasificación de tópicos con el prompt explícito
+    logger.info(f"Agregar tópicos en ejecución")
+    df = add_topic_classification_to_comments_static(df)
+    logger.info(f"Agregar tópicos finalizado")
+
+    df.loc[df['SENTIMIENTO'] == 'invalido', 'TOPICO'] = 'EXPERIENCIA_GENERICA'
+
     # Guardar el DataFrame actualizado en formato binario (como CSV)
     logger.info("Guardando DataFrame actualizado con sentimiento...")
     output = BytesIO()
@@ -107,3 +114,85 @@ def get_evaluations_of_a_day(file_content):
 
     logger.info("Archivo guardado exitosamente en la tabla DailyCommentsWithEvaluation.")
     return
+
+# AHORA VAMOS CON LOS UTILS PARA LOS TOPICOS
+
+
+def generate_static_prompt():
+    """
+    Genera un prompt explícito con todos los tópicos y sub-tópicos escritos directamente.
+    """
+    prompt = """
+Evalúa el siguiente comentario para determinar a cuál de los siguientes 10 tópicos pertenece.(no inventes tópicos nuevos, si crees que el comentario no encaja en nigun tópico, clasifícalo como EXPERIENCIA_GENERICA):
+
+1. Si el comentario menciona temas como TRATO_ACTITUD, ATENCION_GENERAL, SERVICIOS_DE_CORTESIA, CONOCIMIENTO_DEL_VENDEDOR, y solo cuando sea evidente que se esté hablando de la atención al cliente, probablemente se trate del tópico ATENCION_AL_CLIENTE.
+
+2. Si el comentario menciona temas como CALIDAD_NAFTA_INFINIA, CALIDAD_CAFE, CALIDAD_HAMBURGUESAS, probablemente se trate del tópico CALIDAD_DE_PRODUCTOS.
+
+3. Si el comentario menciona temas como APLICACIONES_DIGITALES, USO_DE_TARJETAS_DIGITALES, probablemente se trate del tópico DIGITAL.
+
+4. Si el comentario menciona temas como EXPERIENCIA_POSITIVA, EXPERIENCIA_GENERAL, COSAS_IRRELEVANTES, o es especificamente la palabra "ok" , o contiene las palabras "bien", "muy bien", "mb" sin contexto, y variantes parecidas, o además las evaluaciones con puntajes sin contexto como por ejemplo "10","de 10","10 puntos" o similares,  probablemente todos esos ejemplos se traten del tópico EXPERIENCIA_GENERICA.
+
+5. Si el comentario menciona temas como IMAGEN_DE_INSTALACIONES, SERVICIOS_GENERALES, probablemente se trate del tópico IMAGEN_INSTALACIONES_Y_SERVICIOS_GENERALES.
+
+6. Si el comentario menciona temas como RECLAMOS_SERIOS, PROBLEMAS_CRITICOS, probablemente se trate del tópico PROBLEMATICAS_CRITICAS.
+
+7. Si el comentario menciona temas como LIMPIEZA_BAÑOS, HIGIENE_SANITARIOS, probablemente se trate del tópico SANITARIOS.
+
+8. Si el comentario menciona temas como FALTA_DE_STOCK, DISPONIBILIDAD_PRODUCTOS, probablemente se trate del tópico STOCK_DE_PRODUCTOS.
+
+9. Si el comentario menciona temas como DEMORAS_EN_EL_SERVICIO, RAPIDEZ_ATENCION, probablemente se trate del tópico TIEMPO_DE_ESPERA.
+
+10. Si el comentario menciona temas como PRECIOS_ALTOS, USO_DE_TARJETAS_BANCARIAS, probablemente se trate del tópico VARIABLES_ECONOMICAS_Y_BANCOS.
+
+Responde con el siguiente formato:
+TOPICO: nombre del tópico
+
+No uses corchetes, comillas ni ningún otro símbolo. Escribe SOLO el nombre del tópico después de "TOPICO:". Por ejemplo:
+TOPICO: EXPERIENCIA_GENERICA
+"""
+    return prompt
+
+
+def add_topic_classification_to_comments_static(df):
+    """
+    Clasifica los comentarios en el DataFrame por tópico usando un prompt explícito.
+    """
+    # Obtener el prompt fijo
+    prompt_base = generate_static_prompt()
+    logger.info("Generando clasificación de tópicos para los comentarios...")
+
+    # Crear columna de TÓPICO en el DataFrame
+    df['TOPICO'] = ""
+    contador_comentarios_revisados = 0
+    # Iterar por cada comentario y clasificar
+    for idx, row in df.iterrows():
+        contador_comentarios_revisados += 1
+        logger.info(f"Revisando comentario número: {contador_comentarios_revisados}")
+        comentario = row['COMENTARIO']
+
+        # Generar el prompt específico para este comentario
+        prompt = f"{prompt_base}\nComentario: {comentario}\n"
+        
+        try:
+            # Enviar solicitud a OpenAI
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres un analista que clasifica comentarios en tópicos."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            # Guardar la respuesta
+            respuesta = completion.choices[0].message.content.strip()
+            
+            # Capturar solo el nombre del tópico
+            match = re.search(r"TOPICO:\s*(.*)", respuesta)
+            df.at[idx, 'TOPICO'] = match.group(1) if match else "Error"
+
+        except Exception as e:
+            logger.error(f"Error clasificando comentario ID {row['ID']}: {e}")
+            df.at[idx, 'TOPICO'] = "Error"
+
+    logger.info("Clasificación de tópicos completada.")
+    return df
