@@ -115,7 +115,7 @@ def get_evaluations_of_a_day(file_content):
     logger.info("Archivo guardado exitosamente en la tabla DailyCommentsWithEvaluation.")
     return
 
-# AHORA VAMOS CON LOS UTILS PARA LOS TOPICOS
+# AHORA VAMOS CON LOS UTILS PARA LOS TOPICOS.
 
 
 def generate_static_prompt():
