@@ -11,17 +11,22 @@ load_dotenv()
 import pandas as pd
 from io import BytesIO
 from openai import OpenAI
-
+import httpx
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
 bcrypt = Bcrypt()
 jwt = JWTManager()
 
+
+
+http_client = httpx.Client(proxies=None)
+
 # - Creando cliente openai
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
-    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
+    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq",
+    http_client=http_client
 )
 
 # Sistema de key base pre rutas ------------------------:
