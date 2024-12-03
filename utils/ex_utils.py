@@ -1,5 +1,5 @@
 # DEPRECADO - LO DEJO COMO EJEMPLO PARA ALGUNOS CODIGOS QUE PODRIAN SERVIR.
-import openai
+from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -20,7 +20,7 @@ import gc
 tz = pytz.timezone('America/Sao_Paulo')
 
 # - Creando cliente openai
-client = openai.OpenAI(
+client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
 )

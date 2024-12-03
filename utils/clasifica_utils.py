@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -14,12 +14,11 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from logging_config import logger
-import gc
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
 
 # - Creando cliente openai
-client = openai.OpenAI(
+client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
 )

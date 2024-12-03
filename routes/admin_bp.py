@@ -10,7 +10,7 @@ from dotenv import load_dotenv                                   # Para datos .e
 load_dotenv()
 import pandas as pd
 from io import BytesIO
-import openai
+from openai import OpenAI
 
 
 
@@ -19,7 +19,7 @@ bcrypt = Bcrypt()
 jwt = JWTManager()
 
 # - Creando cliente openai
-client = openai.OpenAI(
+client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
 )
