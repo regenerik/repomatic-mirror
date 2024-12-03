@@ -11,7 +11,7 @@ load_dotenv()
 import pandas as pd
 from io import BytesIO
 from openai import OpenAI
-import httpx
+# import httpx
 
 
 admin_bp = Blueprint('admin', __name__)     # instanciar admin_bp desde clase Blueprint para crear las rutas.
@@ -20,14 +20,14 @@ jwt = JWTManager()
 
 
 
-http_client = httpx.Client(proxies=None)
+# http_client = httpx.Client(proxies=None)
 
-# - Creando cliente openai
-client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq",
-    http_client=http_client
-)
+# # - Creando cliente openai
+# client = OpenAI(
+#     api_key=os.environ.get("OPENAI_API_KEY"),
+#     organization="org-cSBk1UaTQMh16D7Xd9wjRUYq",
+#     http_client=http_client
+# )
 
 # Sistema de key base pre rutas ------------------------:
 
@@ -355,54 +355,54 @@ def existencia_excel():
 # RUTA PRUEBA PARA INPUT DE MENTIMETER>>>>>>>>>>>>>>>>>>>>
 
 
-@admin_bp.route('/procesar_encuesta', methods=['POST'])
-def procesar_encuesta():
-    try:
-        # Verificar si el archivo está presente en la request
-        if 'file' not in request.files:
-            return jsonify({"error": "No se envió ningún archivo"}), 400
+# @admin_bp.route('/procesar_encuesta', methods=['POST'])
+# def procesar_encuesta():
+#     try:
+#         # Verificar si el archivo está presente en la request
+#         if 'file' not in request.files:
+#             return jsonify({"error": "No se envió ningún archivo"}), 400
 
-        file = request.files['file']
+#         file = request.files['file']
         
-        # Leer el archivo Excel
-        df = pd.read_excel(file)
+#         # Leer el archivo Excel
+#         df = pd.read_excel(file)
         
-        # Verificar si tiene suficientes columnas
-        if len(df.columns) < 5:
-            return jsonify({"error": "El archivo no tiene suficientes columnas"}), 400
+#         # Verificar si tiene suficientes columnas
+#         if len(df.columns) < 5:
+#             return jsonify({"error": "El archivo no tiene suficientes columnas"}), 400
         
-        # Capturar los datos de la quinta columna
-        comentarios = df.iloc[:, 4].dropna().tolist()  # El índice 4 es la quinta columna
+#         # Capturar los datos de la quinta columna
+#         comentarios = df.iloc[:, 4].dropna().tolist()  # El índice 4 es la quinta columna
         
-        # Crear el prompt para OpenAI
-        prompt = (
-            "Basándote en los siguientes comentarios de una encuesta, "
-            "genera una interpretación o deducción general. La misma tiene que ser un resumen de no más de un párrafo y texto plano sin caracteres de saltos de linea ni códigos extraños. La respuesta por entero tiene que leerse como si fuera una persona sacando su conclución:\n\n" +
-            "\n".join(comentarios)
-        )
+#         # Crear el prompt para OpenAI
+#         prompt = (
+#             "Basándote en los siguientes comentarios de una encuesta, "
+#             "genera una interpretación o deducción general. La misma tiene que ser un resumen de no más de un párrafo y texto plano sin caracteres de saltos de linea ni códigos extraños. La respuesta por entero tiene que leerse como si fuera una persona sacando su conclución:\n\n" +
+#             "\n".join(comentarios)
+#         )
 
-        # Hacer el pedido a OpenAI
-        try:
-            logger.info("Enviando solicitud a OpenAI...")
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Eres un analista que clasifica comentarios y genera deducciones."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
+#         # Hacer el pedido a OpenAI
+#         try:
+#             logger.info("Enviando solicitud a OpenAI...")
+#             completion = client.chat.completions.create(
+#                 model="gpt-4o-mini",
+#                 messages=[
+#                     {"role": "system", "content": "Eres un analista que clasifica comentarios y genera deducciones."},
+#                     {"role": "user", "content": prompt}
+#                 ]
+#             )
 
-            # Obtener la respuesta
-            respuesta = completion.choices[0].message.content
-            logger.info("Respuesta obtenida exitosamente de OpenAI")
+#             # Obtener la respuesta
+#             respuesta = completion.choices[0].message.content
+#             logger.info("Respuesta obtenida exitosamente de OpenAI")
         
-        except Exception as openai_error:
-            logger.error(f"Error al comunicarse con OpenAI: {openai_error}")
-            return jsonify({"error": "Fallo en la comunicación con OpenAI"}), 500
+#         except Exception as openai_error:
+#             logger.error(f"Error al comunicarse con OpenAI: {openai_error}")
+#             return jsonify({"error": "Fallo en la comunicación con OpenAI"}), 500
 
-        # Retornar el texto generado
-        return jsonify({"resultado": respuesta}), 200
+#         # Retornar el texto generado
+#         return jsonify({"resultado": respuesta}), 200
 
-    except Exception as e:
-        logger.error(f"Error en la ruta: {e}")
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+#         logger.error(f"Error en la ruta: {e}")
+#         return jsonify({"error": str(e)}), 500
