@@ -1,5 +1,4 @@
-import openai
-import requests
+
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
@@ -18,8 +17,3 @@ import gc
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
 
-# - Creando cliente openai
-client = openai.OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
-)

@@ -17,15 +17,12 @@ from logging_config import logger
 import gc
 # Zona horaria de São Paulo/Buenos Aires
 tz = pytz.timezone('America/Sao_Paulo')
-import httpx
 
-http_client = httpx.Client(proxies=None)
 
 # - Creando cliente openai
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
-    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq",
-    http_client=http_client
+    organization="org-cSBk1UaTQMh16D7Xd9wjRUYq"
 )
 
 #-------------------------------------------------------UTILS PARA EXPERIENCIA DE USUARIO--------------------
