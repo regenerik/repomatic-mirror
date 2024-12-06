@@ -131,4 +131,5 @@ with app.app_context():
 if __name__ == '__main__':
     app.run()
 
-# EJECUTO CON : waitress-serve --port=5000 app:app
+# EJECUTO CON : venv\Scripts\activate
+# waitress-serve --port=5000 app:app

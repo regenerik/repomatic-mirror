@@ -14,7 +14,7 @@ src/api/myenv/lib/
 /myenv
 .env
 env
-
+venv/
 # testing
 /coverage
 
