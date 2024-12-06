@@ -68,7 +68,7 @@ def cargar_todos_los_reportes_iniciales():
     if TodosLosReportes.query.count() == 0:  # Verificamos si la tabla está vacía
         reportes_iniciales = [
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133", title="USUARIOS POR ASIGNACION PARA GESTORES"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=137&sid=501", title="CURSADA RETAIL"),
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=137&sid=687", title="CURSADA RETAIL"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=248", title="Cursos con detalle"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", title="VERIFICA USUARIOS PARA GESTORES"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=286&sid=513", title="AVANCE DE PROGRAMAS PBI"),
