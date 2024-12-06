@@ -76,7 +76,7 @@ def cargar_todos_los_reportes_iniciales():
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=204", title="T2_CURSOS_HV"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", title="T2_APIES_HV"),
             TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", title="T2_FACILITADOR_SEMINAR"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=649", title="CURSADA NO RETAIL")
+            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=688", title="CURSADA NO RETAIL")
             # Agrega más reportes iniciales aquí
         ]
         db.session.bulk_save_objects(reportes_iniciales)
