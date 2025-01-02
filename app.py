@@ -63,8 +63,10 @@ print(f"Ruta de la base de datos: {db_path}")
 if not os.path.exists(os.path.dirname(db_path)): # Nos aseguramos que se cree carpeta instance automatico para poder tener mydatabase.db dentro.
     os.makedirs(os.path.dirname(db_path))
 
-# Función para recargar los reportes si hay cambios
+from logging_config import logger
+# Función para recargar los reportes (siempre borra lo anterior y carga lo nuevo)
 def cargar_todos_los_reportes_iniciales():
+    logger.info("Recargando reportes en tabla...")
     # Lista de reportes que queremos cargar
     reportes_nuevos = [
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133", "title": "USUARIOS POR ASIGNACION PARA GESTORES"},
@@ -77,33 +79,28 @@ def cargar_todos_los_reportes_iniciales():
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=713", "title": "Clon de CURSADA NO RETAIL"}
     ]
 
-    # Recuperamos los reportes actuales
+    # Borramos todos los reportes actuales
+    TodosLosReportes.query.delete()
+    db.session.commit()  # Confirmamos el borrado en la base de datos
+
+    # Verificamos si la tabla quedó vacía
     reportes_actuales = TodosLosReportes.query.all()
+    if reportes_actuales:
+        print("Error: No se pudieron eliminar los reportes anteriores.")
+        return  # Salimos de la función si no se eliminaron correctamente
 
-    # Detectamos cambios en la cantidad de reportes
-    if len(reportes_actuales) != len(reportes_nuevos):
-        cambio_detectado = True
-    else:
-        # Comparar contenido (títulos y URLs)
-        cambio_detectado = any(
-            actual.report_url != nuevo["report_url"] or actual.title != nuevo["title"]
-            for actual, nuevo in zip(reportes_actuales, reportes_nuevos)
-        )
+    print("Los reportes anteriores fueron eliminados correctamente.")
 
-    if cambio_detectado:
-        # Borramos todos los reportes actuales
-        TodosLosReportes.query.delete()
+    # Cargamos los nuevos reportes
+    nuevos_registros = [
+        TodosLosReportes(report_url=reporte["report_url"], title=reporte["title"])
+        for reporte in reportes_nuevos
+    ]
+    db.session.bulk_save_objects(nuevos_registros)
+    db.session.commit()
+    logger.info(f"Los reportes fueron actualizados. Se cargaron {len(nuevos_registros)} reportes nuevos.")
 
-        # Cargamos los nuevos reportes
-        nuevos_registros = [
-            TodosLosReportes(report_url=reporte["report_url"], title=reporte["title"])
-            for reporte in reportes_nuevos
-        ]
-        db.session.bulk_save_objects(nuevos_registros)
-        db.session.commit()
-        print(f"Se detectaron cambios. La tabla fue actualizada con {len(nuevos_registros)} reportes nuevos.")
-    else:
-        print("No se detectaron cambios; no se realizaron modificaciones.")
+
 
 
 
