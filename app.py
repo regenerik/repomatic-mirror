@@ -63,23 +63,49 @@ print(f"Ruta de la base de datos: {db_path}")
 if not os.path.exists(os.path.dirname(db_path)): # Nos aseguramos que se cree carpeta instance automatico para poder tener mydatabase.db dentro.
     os.makedirs(os.path.dirname(db_path))
 
-# Función para cargar los reportes iniciales
+# Función para recargar los reportes si hay cambios
 def cargar_todos_los_reportes_iniciales():
-    if TodosLosReportes.query.count() == 0:  # Verificamos si la tabla está vacía
-        reportes_iniciales = [
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133", title="USUARIOS POR ASIGNACION PARA GESTORES"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=302&sid=712", title="Clon de CURSADA RETAIL"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=248", title="Cursos con detalle"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", title="VERIFICA USUARIOS PARA GESTORES"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=204", title="T2_CURSOS_HV"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", title="T2_APIES_HV"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", title="T2_FACILITADOR_SEMINAR"),
-            TodosLosReportes(report_url="https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=713", title="Clon de CURSADA NO RETAIL")
-            # Agrega más reportes iniciales aquí
+    # Lista de reportes que queremos cargar
+    reportes_nuevos = [
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133", "title": "USUARIOS POR ASIGNACION PARA GESTORES"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=302&sid=712", "title": "Clon de CURSADA RETAIL"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=248", "title": "Cursos con detalle"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", "title": "VERIFICA USUARIOS PARA GESTORES"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=204", "title": "T2_CURSOS_HV"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", "title": "T2_APIES_HV"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", "title": "T2_FACILITADOR_SEMINAR"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=713", "title": "Clon de CURSADA NO RETAIL"}
+    ]
+
+    # Recuperamos los reportes actuales
+    reportes_actuales = TodosLosReportes.query.all()
+
+    # Detectamos cambios en la cantidad de reportes
+    if len(reportes_actuales) != len(reportes_nuevos):
+        cambio_detectado = True
+    else:
+        # Comparar contenido (títulos y URLs)
+        cambio_detectado = any(
+            actual.report_url != nuevo["report_url"] or actual.title != nuevo["title"]
+            for actual, nuevo in zip(reportes_actuales, reportes_nuevos)
+        )
+
+    if cambio_detectado:
+        # Borramos todos los reportes actuales
+        TodosLosReportes.query.delete()
+
+        # Cargamos los nuevos reportes
+        nuevos_registros = [
+            TodosLosReportes(report_url=reporte["report_url"], title=reporte["title"])
+            for reporte in reportes_nuevos
         ]
-        db.session.bulk_save_objects(reportes_iniciales)
+        db.session.bulk_save_objects(nuevos_registros)
         db.session.commit()
-        print("Base de datos inicializada con todos los reportes.")
+        print(f"Se detectaron cambios. La tabla fue actualizada con {len(nuevos_registros)} reportes nuevos.")
+    else:
+        print("No se detectaron cambios; no se realizaron modificaciones.")
+
+
 
 # Función para cargar los usuarios iniciales
 def cargar_usuarios_iniciales():
