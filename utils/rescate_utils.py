@@ -173,9 +173,6 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
     hora_inicio = datetime.now()
     logger.info(f"6 - Recuperando reporte desde la URL. Hora de inicio: {hora_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
-
-
-        # Paso 4: Traer los datos en csv
     export_payload = {
         "sesskey": sesskey,
         "_qf__report_builder_export_form": "1",
@@ -187,15 +184,13 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         "Content-Type": "application/x-www-form-urlencoded",
         "Referer": report_url
     }
-    try:
 
+    try:
         # Captura el HTML del report_url
         html_response = session.get(report_url)
-        html_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
+        html_response.raise_for_status()  # Lanza excepción si hubo error HTTP
 
-        # # Captura HTML para depuración
         html_content = html_response.text
-
 
         # Pre fabrica variable "titulo" por si no lo encuentra
         titulo = "reporte_solicitado"
@@ -206,77 +201,109 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         # Busca todos los <h2> en el HTML
         h2_tags = soup.find_all('h2')
         for h2_tag in h2_tags:
-            # Busca todos los <span> dentro del <h2>
             span_tags = h2_tag.find_all('span')
             for span_tag in span_tags:
-                # Captura el texto del <span>
                 span_text = span_tag.get_text(strip=True)
                 if span_text:
-                    # Aquí puedes implementar lógica adicional para verificar el texto
-                    # Por ejemplo, podrías verificar si contiene ciertas palabras clave
                     logger.info(f"7 - Texto encontrado en <span>: {span_text}")
-
-                    # Lista con los títulos posibles / deprecado , ahora capturo los titulos posibles de la precarga de reportes de app.py
-                    # titulos_posibles = [
-                    #     "USUARIOS POR ASIGNACION PARA GESTORES",
-                    #     "CURSADA+YPFRESPALDO",
-                    #     "Cursos con detalle",
-                    #     "VERIFICA USUARIOS PARA GESTORES",
-                    #     "AVANCE DE PROGRAMAS PBI",
-                    # ]
-
-                    # Obtener todos los títulos de la base de datos
+                    # Títulos posibles que tengas
                     titulos_posibles = [reporte.title for reporte in TodosLosReportes.query.all()]
 
-                    # Verificamos si span_text está en la lista de títulos posibles
                     if span_text in titulos_posibles:
                         titulo = span_text
                         break
 
         logger.info(f"8 - Comenzando la captura del archivo csv...")
 
-        # AHORA LA CAPTURA DEL MISMÍSIMO ARCHIVO CSV
+        # Descarga el CSV
         export_response = session.post(report_url, data=export_payload, headers=export_headers)
-        export_response.raise_for_status()  # Lanza una excepción para respuestas de error HTTP
+        export_response.raise_for_status()
 
         logger.info(f"9 - La respuesta de la captura es: {export_response}")
-        
 
-        # Captura la hora de finalización
+        # Convertimos el contenido en BytesIO
+        csv_data = BytesIO(export_response.content)
+
         hora_descarga_finalizada = datetime.now()
-
-        # Calcula el intervalo de tiempo
         elapsed_time = hora_descarga_finalizada - hora_inicio
         elapsed_time_str = str(elapsed_time)
         logger.info(f"10 - CSV recuperado. Tiempo transcurrido de descarga: {elapsed_time}")
 
-        
+        if titulo == "Inscripciones Marketplace":
+            import csv
+            import re
+            from io import StringIO
 
-        # Si es tabla "usuario por asignacion para gestores", toquetear ( en test de falla ):
+            logger.info("Detectado 'Inscripciones Marketplace'; se procederá a dividir registros con múltiples APIES.")
 
-        # if "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133" in report_url:
-        #     csv_data_raw = pd.read_csv(BytesIO(export_response.content))
-        #     csv_data_raw = csv_data_raw.loc[csv_data_raw['DNI'].str.isnumeric()]
-        #     csv_buffer = BytesIO()
-        #     csv_data_raw.to_csv(csv_buffer, index=False)
-        #     csv_data_raw_bytes = csv_buffer.getvalue()
-        #     csv_data = BytesIO(csv_data_raw_bytes)
-        # else:
-        #     csv_data = BytesIO(export_response.content)
-        # Pasamos el csv a binario y rescatamos el peso
-        csv_data = BytesIO(export_response.content)
+            csv_data.seek(0)
+            decoded_csv = csv_data.read().decode('utf-8', errors='replace')
+            lines = decoded_csv.splitlines()
 
-        size_megabytes = (len(csv_data.getvalue())) / 1_048_576
+            reader = csv.DictReader(lines)
+            fieldnames = reader.fieldnames
+
+            filas_procesadas = []
+
+            for row in reader:
+                apies_str = row.get('APIES', '')
+
+                # Normalizamos guiones raros y espacios invisibles
+                apies_str = re.sub(r'[–—−]', '-', apies_str)
+                apies_str = re.sub(r'[\u200B\u200C\u200D\uFEFF]', '', apies_str)
+
+                # Spliteamos por el guion ASCII y limpiamos
+                apies_list = [apie.strip() for apie in apies_str.split('-')]
+                # Eliminamos duplicados manteniendo el orden
+                apies_unicos = list(dict.fromkeys(apies_list))
+
+                if len(apies_unicos) > 1:
+                    # Tenemos varios APIES: se crean registros “clonados”
+                    for api_value in apies_unicos:
+                        nueva_fila = dict(row)
+                        nueva_fila['APIES'] = api_value
+                        filas_procesadas.append(nueva_fila)
+                else:
+                    # Cero o un solo APIE
+                    if len(apies_unicos) == 1:
+                        # Si hay uno, lo ponemos directamente
+                        row['APIES'] = apies_unicos[0]
+                    else:
+                        # Si no hay ninguno, te invento la lógica:
+                        # Podés dejarlo vacío o lo que quieras
+                        row['APIES'] = ''
+                    filas_procesadas.append(row)
+
+            # Reconstruimos el CSV final
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(filas_procesadas)
+
+            # Lo pasamos de vuelta a BytesIO
+            csv_data = BytesIO(output.getvalue().encode('utf-8'))
+
+            logger.info("Operación de división de APIES completada para 'Inscripciones Marketplace'.")
+
+        size_megabytes = len(csv_data.getvalue()) / 1_048_576
         logger.info("11 - Eliminando reporte anterior de DB...")
-        # Elimina registros previos en la tabla que corresponde
+
+        # Eliminamos registros previos
         report_to_delete = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.desc()).first()
         if report_to_delete:
             db.session.delete(report_to_delete)
             db.session.commit()
             logger.info("12 - Reporte previo eliminado >>> guardando el nuevo...")
 
-        # Instancia el nuevo registro a la tabla que corresponde y guarda en db
-        report = Reporte(user_id=username, report_url=report_url, data=csv_data.read(),size= size_megabytes, elapsed_time= elapsed_time_str, title=titulo)
+        # Guardamos el nuevo reporte
+        report = Reporte(
+            user_id=username,
+            report_url=report_url,
+            data=csv_data.read(),
+            size=size_megabytes,
+            elapsed_time=elapsed_time_str,
+            title=titulo
+        )
         db.session.add(report)
         db.session.commit()
         logger.info("13 - Reporte nuevo guardado en la base de datos. Fin de la ejecución.")
@@ -290,8 +317,6 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
 
     except Exception as e:
         logger.info(f"Error inesperado: {e}")
-
-
 
 def obtener_reporte(reporte_url):
     report = Reporte.query.filter_by(report_url=reporte_url).order_by(Reporte.created_at.desc()).first()
