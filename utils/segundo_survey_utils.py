@@ -32,7 +32,7 @@ def obtener_y_guardar_survey():
     # Paso 1: Leer keys del .env
     api_key = os.getenv('SURVEYMONKEY_API_KEY')
     access_token = os.getenv('SURVEYMONKEY_ACCESS_TOKEN')
-    survey_id = os.getenv('SURVEY_ID')
+    survey_id = os.getenv('SECOND_SURVEY_ID')
     
     logger.info("2 - Ya en Utils - Iniciando la recuperación del segundo survey...")
 
