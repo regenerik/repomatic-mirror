@@ -8,6 +8,7 @@ from public_bp import public_bp                     # Acá importamos rutas publ
 from routes.clasifica_topicos_mensual_bp import clasifica_topicos_mensual_bp
 from routes.rescate_reportes_bp import rescate_reportes_bp
 from routes.encuestas_cursos_bp import encuestas_cursos_bp
+from routes.segundo_survey_bp import segundo_survey_bp
 from routes.resumen_comentarios_apies_bp import resumen_comentarios_apies_bp
 from routes.diarios_clasifica_sentimientos_bp import diarios_clasifica_sentimientos_bp
 from routes.clasifica_comentarios_individuales_bp import clasifica_comentarios_individuales_bp
@@ -51,6 +52,8 @@ app.register_blueprint(clasifica_comentarios_individuales_bp, url_prefix='/')
 app.register_blueprint(diarios_clasifica_sentimientos_bp, url_prefix='/')
 
 app.register_blueprint(clasifica_topicos_mensual_bp, url_prefix='/')
+
+app.register_blueprint(segundo_survey_bp, url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')
@@ -153,5 +156,5 @@ with app.app_context():
 if __name__ == '__main__':
     app.run()
 
-# EJECUTO CON : venv\Scripts\activate
+# EJECUTO CON : myenv\Scripts\activate
 # waitress-serve --port=5000 app:app
