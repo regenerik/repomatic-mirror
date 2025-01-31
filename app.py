@@ -80,7 +80,12 @@ def cargar_todos_los_reportes_iniciales():
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", "title": "T2_APIES_HV"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", "title": "T2_FACILITADOR_SEMINAR"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=713", "title": "Clon de CURSADA NO RETAIL"},
-        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=306", "title": "Inscripciones Marketplace"}
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=306", "title": "Inscripciones Marketplace"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=731", "title": "PROGRAMA CONOCIENDO EL ROL"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=732" ,"title": "PROGRAMA INGRESANTES A BOXES"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=733" ,"title": "PROGRAMA OPESSA VENDEDOR DUAL"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=734" ,"title": "PROGRAMA TUS CURSOS INICIALES"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=735" ,"title": "PROGRAMA VENDEDORES RETAIL"},
     ]
 
     # Borramos todos los reportes actuales
