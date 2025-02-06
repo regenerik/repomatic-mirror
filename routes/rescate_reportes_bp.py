@@ -6,12 +6,14 @@ from datetime import timedelta, datetime                         # importa tiemp
 from utils.rescate_utils import exportar_reporte_json, exportar_y_guardar_reporte, obtener_reporte, iniciar_sesion_y_obtener_sesskey, compilar_reportes_existentes
 from logging_config import logger
 import os                                                        # Para datos .env
+from models import Reporte
 from dotenv import load_dotenv                                   # Para datos .env
 load_dotenv()
 import pytz
 import re
 import pandas as pd
 from io import BytesIO
+import io
 
 
 
@@ -200,3 +202,65 @@ def descargar_reporte():
         logger.info("El util>obtener_reporte no devolvió la data...Respuesta de server 404")
         return jsonify({"error": "No se encontró el reporte"}), 404
 
+# RESCATAR LISTA DE REPORTES EXISTENTES (PARA NUEVO FRONT)>--------------------------------
+
+
+@rescate_reportes_bp.route('/reportes_acumulados', methods=['GET'])
+def listar_reportes_agrupados():
+    # Traemos todos los reportes ordenados primero por report_url y luego por fecha descendente
+    reportes = Reporte.query.order_by(Reporte.report_url, Reporte.created_at.desc()).all()
+
+    # Usamos un diccionario para agrupar por report_url
+    grupos = {}
+    for rep in reportes:
+        rep_data = {
+            "id": rep.id,
+            "user_id": rep.user_id,
+            "report_url": rep.report_url,
+            "title": rep.title,
+            "size_megabytes": rep.size,
+            "elapsed_time": rep.elapsed_time,
+            "created_at": rep.created_at.strftime("%d/%m/%Y %H:%M:%S") if rep.created_at else None
+        }
+        if rep.report_url not in grupos:
+            grupos[rep.report_url] = []
+        grupos[rep.report_url].append(rep_data)
+
+    # Armamos el array de respuesta, donde cada objeto representa un grupo único
+    resultado = []
+    for url, versiones in grupos.items():
+        resultado.append({
+            "report_url": url,
+            "version_count": len(versiones),
+            "versions": versiones
+        })
+
+    return jsonify(resultado)
+
+
+# Descargar reporte especifico por ID----------------------------------
+
+@rescate_reportes_bp.route('/descargar_reporte/<int:report_id>', methods=['GET'])
+def descargar_reporte_especifico(report_id):
+    # Buscamos el reporte por id
+    report = Reporte.query.get(report_id)
+    if not report:
+        return jsonify({'error': 'Reporte no encontrado'}), 404
+
+    # Creamos un archivo en memoria con el contenido del reporte
+    file_data = io.BytesIO(report.data)
+
+    # Armamos un nombre de archivo: "titulo_fecha.csv"
+    if report.created_at:
+        timestamp = report.created_at.strftime("%Y%m%d_%H%M%S")
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{report.title}_{timestamp}.csv"
+
+    # Mandamos el archivo como descarga, usando mimetype text/csv
+    return send_file(
+        file_data,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='text/csv'
+    ),200
