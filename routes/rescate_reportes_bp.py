@@ -257,10 +257,12 @@ def descargar_reporte_especifico(report_id):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{report.title}_{timestamp}.csv"
 
-    # Mandamos el archivo como descarga, usando mimetype text/csv
-    return send_file(
+    response = send_file(
         file_data,
         as_attachment=True,
         download_name=filename,
         mimetype='text/csv'
-    ),200
+    )
+    # Exponer el header Content-Disposition para que el front lo pueda leer
+    response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
+    return response, 200
