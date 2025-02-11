@@ -266,3 +266,73 @@ def descargar_reporte_especifico(report_id):
     # Exponer el header Content-Disposition para que el front lo pueda leer
     response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
     return response, 200
+
+# RUTAS PARA ELIMINAR REPORTES / POR GRUPO O INDIVIDUAL ----------------------
+
+@rescate_reportes_bp.route('/delete_report_group', methods=['DELETE'])
+def delete_report_group():
+    data_json = request.get_json()
+    # Chequeamos que llegue el JSON y la propiedad report_url.
+    if not data_json or 'report_url' not in data_json:
+        return jsonify({
+            "msg": "Che, mandá el 'report_url' en el JSON, ¿o te olvidaste?",
+            "ok": False,
+            "codigo": 400
+        }), 400
+
+    report_url = data_json['report_url']
+    # Buscamos todos los reportes con esa URL.
+    reports = Reporte.query.filter_by(report_url=report_url).all()
+    if not reports:
+        return jsonify({
+            "msg": "No se encontró ningún reporte con esa URL, boludo",
+            "ok": False,
+            "codigo": 404
+        }), 404
+
+    try:
+        # Borramos uno a uno.
+        for reporte in reports:
+            db.session.delete(reporte)
+        db.session.commit()
+        return jsonify({
+            "msg": "grupo eliminado",
+            "ok": True,
+            "codigo": 200
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        # Avisamos el error, aunque ojo, en producción no tirés el error directamente.
+        return jsonify({
+            "msg": "Error eliminando el grupo: " + str(e),
+            "ok": False,
+            "codigo": 500
+        }), 500
+
+# Ruta para eliminar un reporte individual utilizando el id pasado en la URL.
+@rescate_reportes_bp.route('/delete_individual_report/<int:id>', methods=['DELETE'])
+def delete_individual_report(id):
+    # Buscamos el reporte por id.
+    reporte = Reporte.query.get(id)
+    if not reporte:
+        return jsonify({
+            "msg": f"No se encontró el reporte con id {id}, che",
+            "ok": False,
+            "codigo": 404
+        }), 404
+
+    try:
+        db.session.delete(reporte)
+        db.session.commit()
+        return jsonify({
+            "msg": "Reporte eliminado",
+            "ok": True,
+            "codigo": 200
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "msg": "Error eliminando reporte: " + str(e),
+            "ok": False,
+            "codigo": 500
+        }), 500
