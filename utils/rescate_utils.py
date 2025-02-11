@@ -264,10 +264,18 @@ def exportar_y_guardar_reporte(session, sesskey, username, report_url):
         size_megabytes = len(csv_data.getvalue()) / 1_048_576
         logger.info("11 - Controlando cantidad de reportes previos en la DB para mantener sólo los últimos 7...")
 
+        if report_url in [
+            "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=133",
+            "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=306"
+        ]:
+            max_reports = 30
+        else:
+            max_reports = 7
+
         # Se consulta la cantidad de reportes existentes para esa URL, ordenados por fecha de creación ascendente (el más viejo primero)
         existing_reports = Reporte.query.filter_by(report_url=report_url).order_by(Reporte.created_at.asc()).all()
         # Si hay 7 o más, se elimina el/los más viejo(s) hasta dejar espacio para el nuevo
-        while len(existing_reports) >= 7:
+        while len(existing_reports) >= max_reports:
             oldest_report = existing_reports[0]
             db.session.delete(oldest_report)
             db.session.commit()  # Commit inmediato para que la lista se actualice
