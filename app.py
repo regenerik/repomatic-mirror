@@ -89,7 +89,8 @@ def cargar_todos_los_reportes_iniciales():
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=306", "title": "Inscripciones Marketplace"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=731", "title": "AVANCE DE PROGRAMAS"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=732" ,"title": "AVANCE DE PROGRAMAS"},
-        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=734" ,"title": "AVANCE DE PROGRAMAS"}
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=734" ,"title": "AVANCE DE PROGRAMAS"},
+        {"report_url": "https://www.campuscomercialypf.com/mod/perform/reporting/performance/activity.php?activity_id=9&all_activities=true" ,"title":"Todas las actividades - 237099 registro/s"}
     ]
 
     # Borramos todos los reportes actuales
