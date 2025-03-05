@@ -12,6 +12,8 @@ import pytz
 import re
 from io import BytesIO
 import io
+import xlsxwriter
+import csv
 
 
 
@@ -78,44 +80,83 @@ def run_exportar_y_guardar_reporte(session, sesskey, username, url):
 
     
     
+# -----------------------------------------------ACA LO NUEVO---------------------------------------------------------
+# 1) Función auxiliar para convertir CSV a XLSX en memoria
+def convertir_csv_a_xlsx(csv_bytes):
+    # Intentamos decodificar con UTF-8, y si falla, con latin1
+    try:
+        csv_str = csv_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        logger.info("Decoding con utf-8 falló, usando latin1")
+        csv_str = csv_bytes.decode('latin1', errors='replace')
+    
+    # Logueamos los primeros 200 caracteres para confirmar el contenido
+    logger.info("Primeros caracteres del CSV: " + csv_str[:200])
+    logger.info("Tamaño total del CSV en bytes: " + str(len(csv_bytes)))
+    
+    # Usamos csv.reader para procesar el CSV
+    csv_reader = csv.reader(csv_str.splitlines())
+    
+    # Creamos el XLSX en memoria
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet()
+    
+    row_count = 0
+    for row in csv_reader:
+        for col_count, cell in enumerate(row):
+            worksheet.write(row_count, col_count, cell)
+        row_count += 1
+    
+    logger.info(f"Total de filas convertidas: {row_count}")
+    workbook.close()
+    output.seek(0)
+    return output.read()
 
-#DESCARGAR DE SERVIDOR PROPIO>
 @rescate_actividades_bp.route('/obtener_actividades', methods=['POST'])
 def descargar_reporte():
     logger.info("POST > /obtener_actividades comenzando...")
-    logger.info("1 - Funciona la ruta de descarga")
     data = request.get_json()
     if 'reporte_url' not in data:
         return jsonify({"error": "Falta reporte_id, username o tipo de archivo en el cuerpo JSON"}), 400
 
     reporte_url = data['reporte_url']
     file_type = data.get('file_type', 'csv')
-    zip_option = data.get('zip', 'no')
     logger.info(f"2 - Url requerida para descarga: {reporte_url}")
     
     reporte_data, created_at, title = obtener_reporte(reporte_url)
     if title is None:
         title = "reporte_obtenido"
-    # -------------------------------------------------------------LIMPIEZA DE TITLE------------------------------------------
-    logger.info("4 - Limpiando nombre de caracteres especiales para guardado...")
-    # Reemplazar caracteres no válidos en nombres de archivos
-    safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
 
-    # Reemplazar espacios y otros espacios en blanco por '_'
+    safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
     safe_title = re.sub(r'\s+', '_', safe_title)
-    # ------------------------------------------------------------------------------------------------------------------------
-    logger.info("5 - Creando respuesta con archivo y enviando. Fin de la ejecución.")
+
     if reporte_data:
-        # Formatear la fecha de creación
         local_tz = pytz.timezone('America/Argentina/Buenos_Aires')
-        created_at_utc = created_at.replace(tzinfo=pytz.utc)  # Asignar la zona horaria UTC
-        created_at_local = created_at_utc.astimezone(local_tz)  # Convertir a la zona horaria local
+        created_at_utc = created_at.replace(tzinfo=pytz.utc)
+        created_at_local = created_at_utc.astimezone(local_tz)
         timestamp = created_at_local.strftime('%d-%m-%Y_%H-%M')
 
+        # Si se pide XLSX...
         if file_type == 'xlsx':
-            filename = f'{safe_title}_{timestamp}.xlsx'
-            response = make_response(reporte_data)
-            response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            # Detectá si el archivo ya es XLSX (firma "PK")
+            if reporte_data.startswith(b'PK'):
+                logger.info("El reporte ya está en formato XLSX, devolviéndolo directamente")
+                filename = f'{safe_title}_{timestamp}.xlsx'
+                response = make_response(reporte_data)
+                response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+                return response, 200
+            else:
+                # Si no empieza con PK, asumimos que es CSV y lo convertimos
+                xlsx_data = convertir_csv_a_xlsx(reporte_data)
+                filename = f'{safe_title}_{timestamp}.xlsx'
+                response = make_response(xlsx_data)
+                response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+                return response, 200
+
+        # Si se pide otro tipo de archivo, tratá de servirlo como venía
         elif file_type == 'json':
             filename = f'{safe_title}_{timestamp}.json'
             response = make_response(reporte_data)
@@ -129,14 +170,11 @@ def descargar_reporte():
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
         else:
-            # Default to CSV if the file_type is unknown
             filename = f'{safe_title}_{timestamp}.csv'
             response = make_response(reporte_data)
             response.headers['Content-Type'] = 'text/csv'
 
-        # Agrega el encabezado de Content-Disposition con el nombre del archivo
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
         return response, 200
     else:
         logger.info("El util>obtener_reporte no devolvió la data...Respuesta de server 404")
