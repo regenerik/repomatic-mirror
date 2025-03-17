@@ -93,6 +93,8 @@ def obtener_y_guardar_survey():
         if respondent_id not in responses_dict:
             responses_dict[respondent_id] = {}
 
+        responses_dict[respondent_id]['response_id'] = respondent_id
+
         # Incorporamos la lógica para ID_CODE y también STORE_CODE, como en el segundo código
         custom_vars = response.get('custom_variables', {})
         responses_dict[respondent_id]['custom_variables'] = custom_vars.get('ID_CODE', '')
