@@ -26,13 +26,27 @@ def query_assistant(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, 
     
     Espera a que el run se complete y devuelve (respuesta_del_asistente, thread_id).
     """
+
+    # Texto de introducción fijo
+    instruction_prefix = (
+        "Se te va a presentar una pregunta relacionada con MOES o YPF. "
+        "Tu tarea es responder exclusivamente sobre esos temas. Si el usuario realiza una consulta "
+        "que no esté vinculada con MOES o YPF, respondé que solo estás habilitado para asistir en temas relacionados a MOES de YPF.\n\n"
+        "Además, si el usuario pregunta quién sos, cómo funcionás o si sos un experto, aclarales que sos un asistente creado por YPF "
+        "para asistir en consultas vinculadas al contenido del MOES.\n\n"
+        "Es importante que formatees tus respuestas con saltos de línea donde sea necesario para facilitar la lectura.\n\n"
+        "A continuación, la consulta del usuario:\n\n"
+    )
+
+    full_prompt = instruction_prefix + prompt
+
     if thread_id:
         # Continuar hilo existente
         create_run_url = f"https://api.openai.com/v1/threads/{thread_id}/runs"
         payload = {
             "assistant_id": ASSISTANT_ID,
             "additional_messages": [
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": full_prompt}
             ],
             "additional_instructions": "Responde siempre con un nuevo mensaje."
         }
@@ -43,7 +57,7 @@ def query_assistant(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, 
             "assistant_id": ASSISTANT_ID,
             "thread": {
                 "messages": [
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": full_prompt}
                 ]
             }
         }
@@ -79,7 +93,7 @@ def query_assistant(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, 
 
     # Agregar un logger o print para ver todo el thread
     import json
-    print("Mensajes del thread:", json.dumps(messages_data, indent=2))
+    # print("Mensajes del thread:", json.dumps(messages_data, indent=2))
 
     # 4. Filtrar los mensajes del asistente y elegir el más reciente
     assistant_messages = [
