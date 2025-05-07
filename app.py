@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy  # Para rutas
 from flask_jwt_extended import  JWTManager, create_access_token, jwt_required, get_jwt_identity
 from routes.admin_bp import admin_bp                       # Acá importamos rutas admin
 from public_bp import public_bp                     # Acá importamos rutas public
+from routes.cuarto_survey_bp import cuarto_survey_bp
 from routes.form_gestores_bp import form_gestores_bp
 from routes.chat_moes_bp import chat_moes_bp
 from routes.rescate_actividades_bp import rescate_actividades_bp
@@ -66,6 +67,8 @@ app.register_blueprint(rescate_actividades_bp, url_prefix='/')
 app.register_blueprint(chat_moes_bp, url_prefix='/')
 
 app.register_blueprint(form_gestores_bp, url_prefix='/')
+
+app.register_blueprint(cuarto_survey_bp, url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')
