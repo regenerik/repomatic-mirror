@@ -133,120 +133,120 @@ def cargar_todos_los_reportes_iniciales():
 
 # Función para cargar los usuarios iniciales
 def cargar_usuarios_iniciales():
-    if User.query.count() == 0:  # Verificamos si la tabla User está vacía
-        usuarios_iniciales = [
-            {
-                "email": os.getenv('EMAIL1'),
-                "name": os.getenv('NAME1'),
-                "password": os.getenv('PASSWORD1'),
-                "dni": os.getenv('DNI1'),
-                "admin": os.getenv('ADMIN1') == 'True',
-                "url_image": os.getenv('URL_IMAGE1')
-            },
-            {
-                "email": os.getenv('EMAIL2'),
-                "name": os.getenv('NAME2'),
-                "password": os.getenv('PASSWORD2'),
-                "dni": os.getenv('DNI2'),
-                "admin": os.getenv('ADMIN2') == 'True',
-                "url_image": os.getenv('URL_IMAGE2')
-            },
-            {
-                "email": os.getenv('EMAIL3'),
-                "name": os.getenv('NAME3'),
-                "password": os.getenv('PASSWORD3'),
-                "dni": os.getenv('DNI3'),
-                "admin": os.getenv('ADMIN3') == 'True',
-                "url_image": os.getenv('URL_IMAGE3')
-            },
-            {
-                "email": os.getenv('EMAIL4'),
-                "name": os.getenv('NAME4'),
-                "password": os.getenv('PASSWORD4'),
-                "dni": os.getenv('DNI4'),
-                "admin": os.getenv('ADMIN4') == 'True',
-                "url_image": os.getenv('URL_IMAGE4')
-            },
-            {
-                "email": os.getenv('EMAIL5'),
-                "name": os.getenv('NAME5'),
-                "password": os.getenv('PASSWORD5'),
-                "dni": os.getenv('DNI5'),
-                "admin": os.getenv('ADMIN5') == 'True',
-                "url_image": os.getenv('URL_IMAGE5')
-            },
-            {
-                "email": os.getenv('EMAIL6'),
-                "name": os.getenv('NAME6'),
-                "password": os.getenv('PASSWORD6'),
-                "dni": os.getenv('DNI6'),
-                "admin": os.getenv('ADMIN6') == 'True',
-                "url_image": os.getenv('URL_IMAGE6')
-            },
-            {
-                "email": os.getenv('EMAIL7'),
-                "name": os.getenv('NAME7'),
-                "password": os.getenv('PASSWORD7'),
-                "dni": os.getenv('DNI7'),
-                "admin": os.getenv('ADMIN7') == 'True',
-                "url_image": os.getenv('URL_IMAGE7')
-            },
-            {
-                "email": os.getenv('EMAIL8'),
-                "name": os.getenv('NAME8'),
-                "password": os.getenv('PASSWORD8'),
-                "dni": os.getenv('DNI8'),
-                "admin": os.getenv('ADMIN8') == 'True',
-                "url_image": os.getenv('URL_IMAGE8')
-            },
-            {
-                "email": os.getenv('EMAIL9'),
-                "name": os.getenv('NAME9'),
-                "password": os.getenv('PASSWORD9'),
-                "dni": os.getenv('DNI9'),
-                "admin": os.getenv('ADMIN9') == 'True',
-                "url_image": os.getenv('URL_IMAGE9')
-            },
-            {
-                "email": os.getenv('EMAIL10'),
-                "name": os.getenv('NAME10'),
-                "password": os.getenv('PASSWORD10'),
-                "dni": os.getenv('DNI10'),
-                "admin": os.getenv('ADMIN10') == 'True',
-                "url_image": os.getenv('URL_IMAGE10')
-            },
-            {
-                "email": os.getenv('EMAIL11'),
-                "name": os.getenv('NAME11'),
-                "password": os.getenv('PASSWORD11'),
-                "dni": os.getenv('DNI11'),
-                "admin": os.getenv('ADMIN11') == 'True',
-                "url_image": os.getenv('URL_IMAGE11')
-            },
-            {
-                "email": os.getenv('EMAIL12'),
-                "name": os.getenv('NAME12'),
-                "password": os.getenv('PASSWORD12'),
-                "dni": os.getenv('DNI12'),
-                "admin": os.getenv('ADMIN12') == 'True',
-                "url_image": os.getenv('URL_IMAGE12')
-            }
-        ]
+    # if User.query.count() == 0:  # Verificamos si la tabla User está vacía
+    usuarios_iniciales = [
+        {
+            "email": os.getenv('EMAIL1'),
+            "name": os.getenv('NAME1'),
+            "password": os.getenv('PASSWORD1'),
+            "dni": os.getenv('DNI1'),
+            "admin": os.getenv('ADMIN1') == 'True',
+            "url_image": os.getenv('URL_IMAGE1')
+        },
+        {
+            "email": os.getenv('EMAIL2'),
+            "name": os.getenv('NAME2'),
+            "password": os.getenv('PASSWORD2'),
+            "dni": os.getenv('DNI2'),
+            "admin": os.getenv('ADMIN2') == 'True',
+            "url_image": os.getenv('URL_IMAGE2')
+        },
+        {
+            "email": os.getenv('EMAIL3'),
+            "name": os.getenv('NAME3'),
+            "password": os.getenv('PASSWORD3'),
+            "dni": os.getenv('DNI3'),
+            "admin": os.getenv('ADMIN3') == 'True',
+            "url_image": os.getenv('URL_IMAGE3')
+        },
+        {
+            "email": os.getenv('EMAIL4'),
+            "name": os.getenv('NAME4'),
+            "password": os.getenv('PASSWORD4'),
+            "dni": os.getenv('DNI4'),
+            "admin": os.getenv('ADMIN4') == 'True',
+            "url_image": os.getenv('URL_IMAGE4')
+        },
+        {
+            "email": os.getenv('EMAIL5'),
+            "name": os.getenv('NAME5'),
+            "password": os.getenv('PASSWORD5'),
+            "dni": os.getenv('DNI5'),
+            "admin": os.getenv('ADMIN5') == 'True',
+            "url_image": os.getenv('URL_IMAGE5')
+        },
+        {
+            "email": os.getenv('EMAIL6'),
+            "name": os.getenv('NAME6'),
+            "password": os.getenv('PASSWORD6'),
+            "dni": os.getenv('DNI6'),
+            "admin": os.getenv('ADMIN6') == 'True',
+            "url_image": os.getenv('URL_IMAGE6')
+        },
+        {
+            "email": os.getenv('EMAIL7'),
+            "name": os.getenv('NAME7'),
+            "password": os.getenv('PASSWORD7'),
+            "dni": os.getenv('DNI7'),
+            "admin": os.getenv('ADMIN7') == 'True',
+            "url_image": os.getenv('URL_IMAGE7')
+        },
+        {
+            "email": os.getenv('EMAIL8'),
+            "name": os.getenv('NAME8'),
+            "password": os.getenv('PASSWORD8'),
+            "dni": os.getenv('DNI8'),
+            "admin": os.getenv('ADMIN8') == 'True',
+            "url_image": os.getenv('URL_IMAGE8')
+        },
+        {
+            "email": os.getenv('EMAIL9'),
+            "name": os.getenv('NAME9'),
+            "password": os.getenv('PASSWORD9'),
+            "dni": os.getenv('DNI9'),
+            "admin": os.getenv('ADMIN9') == 'True',
+            "url_image": os.getenv('URL_IMAGE9')
+        },
+        {
+            "email": os.getenv('EMAIL10'),
+            "name": os.getenv('NAME10'),
+            "password": os.getenv('PASSWORD10'),
+            "dni": os.getenv('DNI10'),
+            "admin": os.getenv('ADMIN10') == 'True',
+            "url_image": os.getenv('URL_IMAGE10')
+        },
+        {
+            "email": os.getenv('EMAIL11'),
+            "name": os.getenv('NAME11'),
+            "password": os.getenv('PASSWORD11'),
+            "dni": os.getenv('DNI11'),
+            "admin": os.getenv('ADMIN11') == 'True',
+            "url_image": os.getenv('URL_IMAGE11')
+        },
+        {
+            "email": os.getenv('EMAIL12'),
+            "name": os.getenv('NAME12'),
+            "password": os.getenv('PASSWORD12'),
+            "dni": os.getenv('DNI12'),
+            "admin": os.getenv('ADMIN12') == 'True',
+            "url_image": os.getenv('URL_IMAGE12')
+        }
+    ]
 
-        for usuario in usuarios_iniciales:
-            password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
-            new_user = User(
-                email=usuario['email'],
-                name=usuario['name'],
-                password=password_hash,
-                dni=usuario['dni'],
-                admin=usuario['admin'],
-                url_image=usuario['url_image']
-            )
-            db.session.add(new_user)
+    for usuario in usuarios_iniciales:
+        password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
+        new_user = User(
+            email=usuario['email'],
+            name=usuario['name'],
+            password=password_hash,
+            dni=usuario['dni'],
+            admin=usuario['admin'],
+            url_image=usuario['url_image']
+        )
+        db.session.add(new_user)
 
-        db.session.commit()
-        print("Usuarios iniciales cargados correctamente.")
+    db.session.commit()
+    print("Usuarios iniciales cargados correctamente.")
 
 with app.app_context():
     db.init_app(app)
