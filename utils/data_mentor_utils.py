@@ -51,8 +51,13 @@ def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tupl
 
     logger.info("5 - Por hacer la llamada a openai...")
     # 1) Crear o continuar el run
-    response = requests.post(create_run_url, headers=HEADERS, json=payload)
-    response.raise_for_status()
+    try:
+        response = requests.post(create_run_url, headers=HEADERS, json=payload)
+        response.raise_for_status()
+    except Exception as e:
+        logger.error("Error llamando a OpenAI: %s — body: %s", e, response.text if 'response' in locals() else "")
+        raise
+    
     run_data = response.json()
 
     # Obtener thread_id y run_id
