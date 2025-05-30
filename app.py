@@ -103,7 +103,8 @@ def cargar_todos_los_reportes_iniciales():
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=732" ,"title": "AVANCE DE PROGRAMAS"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=210&sid=734" ,"title": "AVANCE DE PROGRAMAS"},
         {"report_url": "https://www.campuscomercialypf.com/mod/perform/reporting/performance/activity.php?activity_id=9&all_activities=true" ,"title":"Todas las actividades - 237099 registro/s"},
-        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=249" ,"title": "+YPF 2025 Avance por usuarios"}
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=249" ,"title": "+YPF 2025 Avance por usuarios"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=330" ,"title": "VERIFICÁ INFORMACIÓN DE TU EQUIPO PBI"}
     ]
 
     # Borramos todos los reportes actuales
