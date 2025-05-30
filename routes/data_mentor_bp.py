@@ -51,7 +51,8 @@ def test():
     return jsonify({'message': 'test bien sucedido','status':"Si lees esto, chat data mentor rutas funcionan bien..."}),200
 
 @data_mentor_bp.route("/chat_mentor", methods=["POST"])
-def chat():
+def chat_mentor():
+    logger.info("1 - Entró en la ruta Chat_mentor.")
     """
     Recibe prompt y opcionalmente thread_id.
     """
@@ -61,7 +62,7 @@ def chat():
 
     prompt = data["prompt"]
     thread_id = data.get("thread_id")  # puede ser None
-
+    logger.info("2 - Encontró la data del prompt...")
     try:
         response_text, current_thread = query_assistant_mentor(prompt, thread_id)
         return jsonify({"response": response_text, "thread_id": current_thread}), 200
