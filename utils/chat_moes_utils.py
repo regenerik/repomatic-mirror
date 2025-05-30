@@ -18,76 +18,93 @@ HEADERS = {
 
 ASSISTANT_ID = "asst_X6VHrtqSgEpbQWRpdLcHUU8J"
 
-def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, str]:
+def query_assistant(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, str]:
     """
-    Igual que tu query_assistant original, pero:
-    • Detecta en los mensajes si el modelo hizo un function_call de
-      'obtener_horas_por_curso'
-    • Si lo hizo, hace el GET a /horas-por-curso, suma las horas y devuelve
-      ese texto (sin volver a llamar al modelo)
+    Envía un prompt al asistente con ID ASSISTANT_ID utilizando la API de OpenAI.
+    - Si NO hay thread_id => se crea un nuevo hilo (POST /v1/threads/runs).
+    - Si SÍ hay thread_id => se continúa el hilo existente (POST /v1/threads/{thread_id}/runs).
+    
+    Espera a que el run se complete y devuelve (respuesta_del_asistente, thread_id).
     """
-    # 1) Creación o continuación de run (idéntico a tu función original)
+
+    # Texto de introducción fijo
+    # instruction_prefix = (
+    #     "Se te va a presentar una pregunta relacionada con MOES o YPF. "
+    #     "Tu tarea es responder exclusivamente utilizando el contenido relacionado con esos temas a los cuales ya tienes acceso.\n\n"
+    #     "Además, si el usuario pregunta quién sos, cómo funcionás o si sos un experto, aclarales que sos un asistente creado por YPF "
+    #     "para asistir en consultas vinculadas al contenido del MOES.\n\n"
+    #     "Es importante que formatees tus respuestas con saltos de línea donde sea necesario para facilitar la lectura.\n\n"
+    #     "A continuación, la consulta del usuario:\n\n"
+    # )
+
+    full_prompt =  prompt
+
     if thread_id:
-        url = f"https://api.openai.com/v1/threads/{thread_id}/runs"
+        # Continuar hilo existente
+        create_run_url = f"https://api.openai.com/v1/threads/{thread_id}/runs"
         payload = {
             "assistant_id": ASSISTANT_ID,
-            "additional_messages": [{"role": "user", "content": prompt}],
+            "additional_messages": [
+                {"role": "user", "content": full_prompt}
+            ],
             "additional_instructions": "Responde siempre con un nuevo mensaje."
         }
     else:
-        url = "https://api.openai.com/v1/threads/runs"
+        # Crear hilo nuevo
+        create_run_url = "https://api.openai.com/v1/threads/runs"
         payload = {
             "assistant_id": ASSISTANT_ID,
-            "thread": {"messages": [{"role": "user", "content": prompt}]}
+            "thread": {
+                "messages": [
+                    {"role": "user", "content": full_prompt}
+                ]
+            }
         }
 
-    resp = requests.post(url, headers=HEADERS, json=payload)
-    resp.raise_for_status()
-    run_data = resp.json()
+    # 1. Crear (o continuar) el run
+    response = requests.post(create_run_url, headers=HEADERS, json=payload)
+    response.raise_for_status()
+    run_data = response.json()
 
+    # Si es nuevo hilo, el thread_id viene de la respuesta
+    # Si es hilo existente, ya lo teníamos, pero la API lo reenvía igual
     new_thread_id = run_data.get("thread_id") or thread_id
-    run_id       = run_data["id"]
+    run_id = run_data["id"]
 
-    # 2) Poll until completed
-    status = run_data["status"]
-    while status not in ["completed", "failed", "cancelled"]:
+    # 2. Polling: esperar a que el run se complete
+    run_status = run_data["status"]
+    while run_status not in ["completed", "failed", "cancelled"]:
         time.sleep(1)
-        check = requests.get(
-            f"https://api.openai.com/v1/threads/{new_thread_id}/runs/{run_id}",
-            headers=HEADERS
-        )
-        check.raise_for_status()
-        run_data = check.json()
-        status   = run_data["status"]
+        get_run_url = f"https://api.openai.com/v1/threads/{new_thread_id}/runs/{run_id}"
+        run_response = requests.get(get_run_url, headers=HEADERS)
+        run_response.raise_for_status()
+        run_data = run_response.json()
+        run_status = run_data["status"]
 
-    if status != "completed":
-        raise RuntimeError(f"Run terminó con estado '{status}'")
+    if run_status != "completed":
+        raise RuntimeError(f"El run terminó con estado '{run_status}'.")
 
-    # 3) Recuperar todos los mensajes del thread
-    msgs = requests.get(
-        f"https://api.openai.com/v1/threads/{new_thread_id}/messages",
-        headers=HEADERS
-    ).json().get("data", [])
+    # 3. Recuperar los mensajes del thread
+    messages_url = f"https://api.openai.com/v1/threads/{new_thread_id}/messages"
+    messages_response = requests.get(messages_url, headers=HEADERS)
+    messages_response.raise_for_status()
+    messages_data = messages_response.json()
 
-    # 4) Primero: ¿el último mensaje del assistant fue un function_call?
-    #    En la API de Threads, los function calls vienen como partes de content
-    last = max(msgs, key=lambda m: m.get("created_at", 0))
-    # Buscamos una parte de tipo function_call
-    for part in last.get("content", []):
-        if part.get("type") == "function_call" and part["function_call"]["name"] == "obtener_horas_por_curso":
-            # Si lo pidió, hacemos el fetch directo a nuestra ruta
-            cursos = requests.get("https://repomatic2.onrender.com/horas-por-curso").json()
-            total  = sum(item.get("horas",0) for item in cursos)
-            # Y devolvemos el texto con el total
-            return f"La cantidad total de horas de los cursos es {total} horas.", new_thread_id
+    # Agregar un logger o print para ver todo el thread
+    import json
+    # print("Mensajes del thread:", json.dumps(messages_data, indent=2))
 
-    # 5) Si no era un function_call, volvemos al comportamiento normal:
-    #    concatenar todas las partes de tipo text
-    assistant_messages = [m for m in msgs if m.get("role") == "assistant"]
-    text = ""
+    # 4. Filtrar los mensajes del asistente y elegir el más reciente
+    assistant_messages = [
+        msg for msg in messages_data.get("data", []) if msg.get("role") == "assistant"
+    ]
     if assistant_messages:
-        last_ass = max(assistant_messages, key=lambda m: m.get("created_at", 0))
-        for part in last_ass.get("content", []):
+        last_assistant_msg = max(assistant_messages, key=lambda m: m.get("created_at", 0))
+        assistant_message = ""
+        for part in last_assistant_msg.get("content", []):
             if part.get("type") == "text":
-                text += part["text"].get("value", "")
-    return text, new_thread_id
+                assistant_message += part.get("text", {}).get("value", "")
+    else:
+        assistant_message = ""
+
+    return assistant_message, new_thread_id
