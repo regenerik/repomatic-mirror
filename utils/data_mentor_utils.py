@@ -22,83 +22,79 @@ ASSISTANT_ID = "asst_Gy0OKzAqKGqXiU25q9Z89Ifs"
 
 CURSOS_URL = "https://repomatic2.onrender.com/horas-por-curso"
 
-# Definición de la herramienta para function calling (se usa en 'tools')
+# Definición de la función para function calling
 TOOL_DEF = {
     "type": "function",
     "name": "obtener_horas_por_curso",
-    "description": "Llama al endpoint /horas-por-curso y devuelve lista de cursos con sus horas",
+    "description": "Devuelve lista de cursos con sus horas consultando /horas-por-curso",
     "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     "strict": True
 }
 
-# Mensaje del sistema para guiar al modelo
+# Mensaje de sistema
 SYSTEM_PROMPT = (
     "Sos un asistente de YPF entrenado para analizar datos de encuestas y cursos otorgados "
-    "por Gerentes de YPF. Cuando necesites datos de horas, utilizá la función obtener_horas_por_curso."
+    "por Gerentes de YPF. Cuando necesites datos de horas, invocá la función obtener_horas_por_curso."
 )
 
 def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, str]:
     """
-    Usa la API Responses de openai-python >=1.0.0 con function calling:
-    1) Llama a client.responses.create con tools=[TOOL_DEF]
-    2) Si el modelo decide hacer un function_call, ejecuta GET real a CURSOS_URL
-    3) Reimplementa otra llamada a responses.create con el resultado de la función
-    4) Devuelve el texto final generado por el modelo
+    Usa la API Responses de openai-python >=1.0.0 con función `obtener_horas_por_curso`:
+      1) Llama a client.responses.create con input=mensajes y tools=[TOOL_DEF]
+      2) Si el modelo decide hacer function_call: ejecuta GET real a CURSOS_URL
+      3) Vuelve a llamar a client.responses.create incluyendo output de la función
+      4) Devuelve final.output_text como respuesta
     """
-    # 1) Construir el input inicial: mensajes de sistema + usuario
-    messages = [
+    # 1) Armar input para Responses API
+    input_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": prompt}
     ]
 
-    # 2) Llamada inicial: el modelo puede invocar la función
+    # 2) Primera llamada: modelo puede decidir usar la función
     try:
         initial = client.responses.create(
             model="gpt-4o",
-            input=messages,
+            input=input_messages,
             tools=[TOOL_DEF]
         )
     except Exception as e:
-        # Algo salió mal con la API
-        err = f"Error comunicándose con OpenAI: {e}"
-        return err, thread_id or ""
+        return f"Error comunicándose con OpenAI: {e}", thread_id or ""
 
-    # 'initial.output' es la lista de items (puede haber function_call)
+    # Filtrar llamadas a función
     tool_calls = [item for item in initial.output if item.get("type") == "function_call"]
 
+    # 3) Si hay llamada a obtener_horas_por_curso
     if tool_calls:
-        # Tomamos el primer function_call que pidió el modelo
         call = tool_calls[0]
+        # Ejecutar en tu servidor
         try:
             cursos = requests.get(CURSOS_URL).json()
         except Exception:
             return "Error al obtener datos de cursos.", thread_id or ""
 
-        # 3) Preparamos el nuevo input: mensajes + función + resultado
-        messages.append({
+        # 4) Rearmar input con la respuesta de la función
+        input_messages.append({
             "type": "function_call",
             "name": call["name"],
             "arguments": call.get("arguments", "{}")
         })
-        messages.append({
+        input_messages.append({
             "type": "function_call_output",
             "call_id": call.get("call_id", ""),
             "output": json.dumps(cursos)
         })
 
-        # 4) Segunda llamada: el modelo integra el resultado
+        # 5) Segunda llamada para respuesta final
         try:
             final = client.responses.create(
                 model="gpt-4o",
-                input=messages,
+                input=input_messages,
                 tools=[TOOL_DEF]
             )
-            # El texto final está en output_text
-            text = final.output_text
+            return final.output_text, thread_id or ""
         except Exception as e:
-            text = f"Error generando la respuesta final: {e}"
-    else:
-        # Sin function_call: tomamos el output directo como texto
-        text = getattr(initial, 'output_text', '') or ''
+            return f"Error generando respuesta final: {e}", thread_id or ""
 
-    return text, thread_id or ""
+    # 6) Si no llamó a función, devolvemos el texto generado
+    return initial.output_text, thread_id or ""
