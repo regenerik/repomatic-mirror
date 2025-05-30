@@ -22,68 +22,75 @@ import time
 import requests
 from typing import Optional, Tuple
 
-# Debés tener:
-# ASSISTANT_ID = "<tu_assistant_id>"
-# HEADERS = {"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}", "Content-Type": "application/json"}
-# logger = tu_logger
+CURSOS_URL = "https://repomatic2.onrender.com/horas-por-curso"
 
 # Definición de la función-tool para OpenAI
 FUNCTION_DEF = {
     "name": "obtener_horas_por_curso",
-    "description": "Devuelve un array de objetos {curso, horas} consultando /horas-por-curso",  
+    "description": "Devuelve un array de objetos {curso, horas} consultando /horas-por-curso",
     "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
 }
 
-# URL de tu endpoint de cursos
-CURSOS_URL = "https://repomatic2.onrender.com/horas-por-curso"
-
-# System prompt para el asistente
+# Mensaje para el sistema
 SYSTEM_PROMPT = (
     "Sos un asistente de YPF entrenado para analizar datos de encuestas y cursos otorgados "
-    "por Gerentes de YPF. Para requests de horas, llamá a la función obtener_horas_por_curso."
+    "por Gerentes de YPF. Cuando necesites datos de horas, invocá la función obtener_horas_por_curso."
 )
+
 
 def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, str]:
     """
-    Usa la API de chat completions con OpenAI Functions:
-    1. Envia el mensaje y permite function_call automatico.
-    2. Si el modelo llama a obtener_horas_por_curso, hacemos GET a tu endpoint real.
-    3. Alimentamos la respuesta de la función y devolvemos la respuesta final.
+    Hace un chat completion con funciones:
+    1) Pregunta al modelo y le permite llamar a la función automáticamente.
+    2) Si el modelo invoca obtener_horas_por_curso, se hace GET real y se reinyecta la respuesta.
+    3) Devuelve el texto final generado por el modelo.
     """
-    # Construir historial de mensajes
+    # 1. Construir historial de mensajes
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": prompt}
     ]
 
-    # 1) Primera llamada: pedir al modelo, dejando que llame a la función
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=messages,
-        functions=[FUNCTION_DEF],
-        function_call="auto"
-    )
+    # 2. Llamar a la API de OpenAI, dejando que llame a la función
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=messages,
+            functions=[FUNCTION_DEF],
+            function_call="auto"
+        )
+    except Exception as e:
+        # Error comunicándose con OpenAI
+        err = f"Error al contactar con OpenAI: {e}"
+        return err, thread_id or ""
+
     message = response.choices[0].message
 
-    # 2) Si llamó a nuestra función, ejecutarla y volver a llamar para la respuesta final
+    # 3. Si invocó la función, ejecutarla y reenviar datos
     if message.get("function_call"):
-        # Hacer GET real
-        cursos = requests.get(CURSOS_URL).json()
-        # Agregar la función como mensaje
+        try:
+            cursos = requests.get(CURSOS_URL).json()
+        except Exception as e:
+            return "Error al obtener datos de cursos.", thread_id or ""
+
+        # Agregar la llamada de función y su resultado al historial
         messages.append(message)
         messages.append({
             "role": "function",
             "name": message["function_call"]["name"],
-            "content": openai.util.to_json(cursos)
+            "content": json.dumps(cursos)
         })
-        final_resp = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=messages
-        )
-        final_text = final_resp.choices[0].message.content
-    else:
-        # No hubo function_call, usar el contenido normal
-        final_text = message.content
 
-    # thread_id no se usa en este enfoque, devolvemos el incoming o None
+        try:
+            final_resp = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=messages
+            )
+            final_text = final_resp.choices[0].message.content
+        except Exception as e:
+            final_text = f"Error procesando respuesta final: {e}"
+    else:
+        # 4. Si no hubo llamada a función, tomar el contenido normal
+        final_text = message.content or ""
+
     return final_text, thread_id or ""
