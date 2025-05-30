@@ -138,7 +138,10 @@ def query_assistant_mentor(
         r2 = requests.post(
             f"https://api.openai.com/v1/threads/{new_thread_id}/runs",
             headers=HEADERS,
-            json={"assistant_id": ASSISTANT_ID}
+            json={
+                "assistant_id": ASSISTANT_ID,
+                "additional_messages": []
+            }
         )
         r2.raise_for_status()
         run2 = r2.json()
