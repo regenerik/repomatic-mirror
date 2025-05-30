@@ -20,63 +20,60 @@ ASSISTANT_ID = "asst_Gy0OKzAqKGqXiU25q9Z89Ifs"
 
 def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tuple[str, str]:
     logger.info("3 - Entró en el útil query_assistant_mentor...")
-    """
-    Envía un prompt al asistente con ID ASSISTANT_ID utilizando la API de OpenAI.
-    - Si NO hay thread_id => se crea un nuevo hilo (POST /v1/threads/runs).
-    - Si SÍ hay thread_id => se continúa el hilo existente (POST /v1/threads/{thread_id}/runs).
+    
+    # Configuración de la función que va a llamar el modelo
+    function_def = {
+      "name": "obtener_horas_por_curso",
+      "description": "Devuelve un array con cada curso y su cantidad de horas",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False
+      }
+    }
 
-    Gestiona llamadas a funciones (tool calls) y polling hasta completion.
-    """
-
-    full_prompt = prompt
-
-    # 4) Preparar URL y payload según exista hilo o no
+    # 1) Elegir URL y payload inicial
     if thread_id:
-        logger.info("4 - Ya hay hilo.. siguiendo por esa lógica...")
-        create_run_url = f"https://api.openai.com/v1/threads/{thread_id}/runs"
+        logger.info("4 - Ya hay hilo, continuamos el run existente")
+        url = f"https://api.openai.com/v1/threads/{thread_id}/runs"
         payload = {
             "assistant_id": ASSISTANT_ID,
-            "additional_messages": [
-                {"role": "user", "content": full_prompt}
-            ],
+            "functions": [function_def],
+            "function_call": "auto",
+            "additional_messages": [{"role": "user", "content": prompt}],
             "additional_instructions": "Responde siempre con un nuevo mensaje."
         }
     else:
-        logger.info("4 - No hay hilo.. creando hilo nuevo...")
-        create_run_url = "https://api.openai.com/v1/threads/runs"
+        logger.info("4 - No hay hilo, creamos uno nuevo")
+        url = "https://api.openai.com/v1/threads/runs"
         payload = {
             "assistant_id": ASSISTANT_ID,
-            "thread": {"messages": [{"role": "user", "content": full_prompt}]}
+            "functions": [function_def],
+            "function_call": "auto",
+            "thread": {"messages": [{"role": "user", "content": prompt}]}
         }
 
-    logger.info("5 - Por hacer la llamada a openai...")
-    # 1) Crear o continuar el run
-    try:
-        response = requests.post(create_run_url, headers=HEADERS, json=payload)
-        response.raise_for_status()
-    except Exception as e:
-        logger.error("Error llamando a OpenAI: %s — body: %s", e, response.text if 'response' in locals() else "")
-        raise
-    
-    run_data = response.json()
+    logger.info("5 - Llamando a OpenAI para crear/continuar run")
+    resp = requests.post(url, headers=HEADERS, json=payload)
+    resp.raise_for_status()
+    run_data = resp.json()
 
-    # Obtener thread_id y run_id
-    new_thread_id = run_data.get("thread_id") or thread_id
-    run_id = run_data["id"]
-    run_status = run_data.get("status")
+    new_thread = run_data.get("thread_id") or thread_id
+    run_id     = run_data["id"]
+    status     = run_data["status"]
 
-    # 2) Polling y gestión de tool calls
+    # 2) Polling y manejo de llamadas a la función
     while True:
-        # 2.1) Si el modelo pidió una función, ejecutarla y enviarla
-        if run_status == "requires_action":
+        # Si el modelo solicitó la función...
+        if status == "requires_action":
             tc = run_data["required_action"]["submit_tool_outputs"]["tool_calls"][0]
-            # Llamar a tu API Flask real
+            # Ejecutamos la llamada real
             cursos = requests.get(
                 "https://repomatic2.onrender.com/horas-por-curso"
             ).json()
-            # Enviar el output a OpenAI para completar el run
+            # Enviamos el resultado para que el run avance
             submit_url = (
-                f"https://api.openai.com/v1/threads/{new_thread_id}"
+                f"https://api.openai.com/v1/threads/{new_thread}"
                 f"/runs/{run_id}/tool_calls/{tc['id']}/submit"
             )
             requests.post(
@@ -84,48 +81,46 @@ def query_assistant_mentor(prompt: str, thread_id: Optional[str] = None) -> Tupl
                 headers=HEADERS,
                 json={"tool_call_id": tc["id"], "output": cursos}
             ).raise_for_status()
-            # Volver a pedir el estado actualizado
-            get_run = requests.get(
-                f"https://api.openai.com/v1/threads/{new_thread_id}/runs/{run_id}",
+            # Actualizamos estado
+            check = requests.get(
+                f"https://api.openai.com/v1/threads/{new_thread}/runs/{run_id}",
                 headers=HEADERS
             )
-            get_run.raise_for_status()
-            run_data = get_run.json()
-            run_status = run_data.get("status")
+            check.raise_for_status()
+            run_data = check.json()
+            status   = run_data["status"]
             continue
 
-        # 2.2) Si el run terminó, salimos
-        if run_status in ["completed", "failed", "cancelled"]:
+        # Si terminó (completado, falló o cancelado), salimos
+        if status in ["completed", "failed", "cancelled"]:
             break
 
-        # 2.3) Si sigue corriendo, esperamos y refrescamos
+        # Si sigue corriendo, esperamos un segundo y refrescamos
         time.sleep(1)
-        get_run = requests.get(
-            f"https://api.openai.com/v1/threads/{new_thread_id}/runs/{run_id}",
+        check = requests.get(
+            f"https://api.openai.com/v1/threads/{new_thread}/runs/{run_id}",
             headers=HEADERS
         )
-        get_run.raise_for_status()
-        run_data = get_run.json()
-        run_status = run_data.get("status")
+        check.raise_for_status()
+        run_data = check.json()
+        status   = run_data["status"]
 
-    if run_status != "completed":
-        raise RuntimeError(f"El run terminó con estado '{run_status}' y no se completó correctamente.")
+    if status != "completed":
+        raise RuntimeError(f"Run terminó con estado '{status}'")
 
-    # 3) Recuperar mensajes del thread
-    messages_url = f"https://api.openai.com/v1/threads/{new_thread_id}/messages"
-    messages_response = requests.get(messages_url, headers=HEADERS)
-    messages_response.raise_for_status()
-    messages_data = messages_response.json()
+    # 3) Una vez completado, traemos mensajes
+    msgs = requests.get(
+        f"https://api.openai.com/v1/threads/{new_thread}/messages",
+        headers=HEADERS
+    ).json().get("data", [])
 
-    # 4) Filtrar y concatenar texto del último mensaje de assistant
-    assistant_messages = [
-        msg for msg in messages_data.get("data", []) if msg.get("role") == "assistant"
-    ]
-    assistant_message = ""
-    if assistant_messages:
-        last_msg = max(assistant_messages, key=lambda m: m.get("created_at", 0))
-        for part in last_msg.get("content", []):
+    # 4) Filtramos el último assistant message y concatenamos texto
+    assistant_msgs = [m for m in msgs if m.get("role") == "assistant"]
+    result = ""
+    if assistant_msgs:
+        last = max(assistant_msgs, key=lambda m: m.get("created_at", 0))
+        for part in last.get("content", []):
             if part.get("type") == "text":
-                assistant_message += part.get("text", {}).get("value", "")
+                result += part["text"].get("value", "")
 
-    return assistant_message, new_thread_id
+    return result, new_thread
