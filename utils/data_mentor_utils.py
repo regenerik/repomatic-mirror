@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 from logging_config import logger
 import json
 import openai
+from openai import OpenAI
+client = OpenAI()
 
 # Asegurate de tener definida la variable de entorno OPENAI_API_KEY
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
