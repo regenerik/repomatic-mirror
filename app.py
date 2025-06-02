@@ -98,7 +98,7 @@ def cargar_todos_los_reportes_iniciales():
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=248", "title": "Cursos con detalle"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=130", "title": "VERIFICA USUARIOS PARA GESTORES"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=204", "title": "T2_CURSOS_HV"},
-        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=205", "title": "T2_APIES_HV"},
+        {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=332", "title": "T2_APIES_HV_2"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=261", "title": "T2_FACILITADOR_SEMINAR"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=296&sid=713", "title": "CURSADA NO RETAIL"},
         {"report_url": "https://www.campuscomercialypf.com/totara/reportbuilder/report.php?id=306", "title": "Inscripciones Marketplace"},
