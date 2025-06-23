@@ -111,6 +111,7 @@ def run_obtener_y_guardar_quinto():
 @quinto_survey_bp.route('/descargar_quinto_survey', methods=['GET'])
 def descargar_quinto():
     try:
+        logger.info("Se va a actualizar en su tabla propia: QuintoSurvey")
         registro = QuintoSurvey.query.order_by(QuintoSurvey.id.desc()).first()
         if not registro:
             return jsonify({"message": "No hay datos del quinto survey en la DB"}), 404
