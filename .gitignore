@@ -6,8 +6,8 @@
 !.render-buildpacks.json
 
 # dependencies
-/instance
-instance/
+# /instance
+# instance/
 __pycache__/
 /node_modules
 /.pnp

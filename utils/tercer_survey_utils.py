@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import SegundoSurvey
+from models import TercerSurvey
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 from io import BytesIO
@@ -139,10 +139,10 @@ def obtener_y_guardar_survey():
     # Paso 7: Guardar en la base de datos
     logger.info("Guardando el survey nuevo en la DB... a meterle garra")
     # Eliminar registros anteriores (si corresponde)
-    db.session.query(SegundoSurvey).delete()
+    db.session.query(TercerSurvey).delete()
     db.session.flush()
     
-    new_survey = SegundoSurvey(data=binary_data)
+    new_survey = TercerSurvey(data=binary_data)
     db.session.add(new_survey)
     db.session.commit()
     

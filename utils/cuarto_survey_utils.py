@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from io import BytesIO
 from database import db
-from models import SegundoSurvey
+from models import CuartoSurvey
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 from io import BytesIO
@@ -168,8 +168,8 @@ client = OpenAI(
 #     with BytesIO() as buf:
 #         df.to_pickle(buf)
 #         data_blob = buf.getvalue()
-#     db.session.query(SegundoSurvey).delete()
-#     db.session.add(SegundoSurvey(data=data_blob))
+#     db.session.query(CuartoSurvey).delete()
+#     db.session.add(CuartoSurvey(data=data_blob))
 #     db.session.commit()
 
 #     gc.collect()
@@ -315,8 +315,8 @@ client = OpenAI(
 #     with BytesIO() as buf:
 #         df.to_pickle(buf)
 #         data_blob = buf.getvalue()
-#     db.session.query(SegundoSurvey).delete()
-#     db.session.add(SegundoSurvey(data=data_blob))
+#     db.session.query(CuartoSurvey).delete()
+#     db.session.add(CuartoSurvey(data=data_blob))
 #     db.session.commit()
 
 #     gc.collect()
@@ -480,8 +480,8 @@ def obtener_y_guardar_cuarto_survey():
     with BytesIO() as buf:
         df.to_pickle(buf)
         blob = buf.getvalue()
-    db.session.query(SegundoSurvey).delete()
-    db.session.add(SegundoSurvey(data=blob))
+    db.session.query(CuartoSurvey).delete()
+    db.session.add(CuartoSurvey(data=blob))
     db.session.commit()
 
     gc.collect()
