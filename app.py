@@ -19,6 +19,7 @@ from routes.tercer_survey_bp import tercer_survey_bp
 from routes.resumen_comentarios_apies_bp import resumen_comentarios_apies_bp
 from routes.diarios_clasifica_sentimientos_bp import diarios_clasifica_sentimientos_bp
 from routes.clasifica_comentarios_individuales_bp import clasifica_comentarios_individuales_bp
+from routes.limpieza_bp import limpieza_bp
 from database import db                             # Acá importamos la base de datos inicializada
 from flask_cors import CORS                         # Permisos de consumo
 from extensions import init_extensions              # Necesario para que funcione el executor en varios archivos en simultaneo
@@ -75,6 +76,8 @@ app.register_blueprint(cuarto_survey_bp, url_prefix='/')
 app.register_blueprint(quinto_survey_bp, url_prefix='/')
 
 app.register_blueprint(data_mentor_bp, url_prefix='/')
+
+app.register_blueprint(limpieza_bp, url_prefix='/')
 
 # DATABASE---------------
 db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'mydatabase.db')
