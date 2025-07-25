@@ -30,81 +30,96 @@ client = OpenAI(
 
 #----------------UTILS PARA TERCER SURVEY------------------------///////////////////////
 
-# 👉 Función que maneja retries automáticos con backoff exponencial para errores 429
-def get_with_retries(url, headers, max_retries=5, backoff_base=1.5):
+def get_with_retries(url, headers, max_retries=5, backoff_base=1.5, page=None):
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, headers=headers, timeout=20)
-            if response.status_code == 200:
-                return response
-            elif response.status_code == 429:
-                wait_time = backoff_base * (2 ** attempt) + random.uniform(0, 1)
-                logger.warning(f"Rate limited (429). Reintentando en {wait_time:.2f}s (intento {attempt+1}/{max_retries})...")
-                time.sleep(wait_time)
-            else:
-                logger.error(f"Error inesperado al obtener respuestas: {response.status_code}")
-                break
+            resp = requests.get(url, headers=headers, timeout=20)
         except Exception as e:
-            logger.error(f"Excepción durante el request: {e}")
+            logger.error(f"Excepción request página {page}: {e}")
             time.sleep(2)
-    return None
+            continue
 
-# 👉 Función principal que recupera y guarda el survey
+        if resp.status_code == 200:
+            logger.info(f"Página {page}: OK (status 200)")
+            return resp
+        elif resp.status_code == 429:
+            wait = backoff_base * (2 ** attempt) + random.uniform(0,1)
+            logger.warning(f"Pág {page}: Rate limited (429). Reintentando en {wait:.2f}s (intento {attempt+1}/{max_retries})")
+            time.sleep(wait)
+        else:
+            logger.error(f"Pág {page}: Error inesperado {resp.status_code}")
+            break
+    logger.error(f"Página {page}: No se pudo recuperar luego de {max_retries} intentos.")
+    return resp  # devolver última respuesta (429 o error) para manejar abort
+
 def obtener_y_guardar_survey():
     api_key = os.getenv('SURVEYMONKEY_API_KEY')
     access_token = os.getenv('SURVEYMONKEY_ACCESS_TOKEN')
     survey_id = '416779463'
-    
-    logger.info("Arrancando con el tercer survey ... vamos que esta sale a la primera..")
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     HOST = "https://api.surveymonkey.com"
-    SURVEY_RESPONSES_ENDPOINT = f"/v3/surveys/{survey_id}/responses/bulk"
-    SURVEY_DETAILS_ENDPOINT = f"/v3/surveys/{survey_id}/details"
-
+    ENDPOINT = f"/v3/surveys/{survey_id}/responses/bulk"
     hora_inicio = datetime.now()
-    logger.info("Recuperando detalles del survey nuevo...")
+    logger.info("Arrancando tercer survey...")
 
+    # Primera página para leer total y per_page
+    url1 = f"{HOST}{ENDPOINT}?page=1&per_page=1000"
+    resp1 = get_with_retries(url1, headers, page=1)
+    if resp1 is None or resp1.status_code != 200:
+        logger.error("No se pudo recuperar la primera página. Abortando.")
+        return
+    body1 = resp1.json()
+    per_page = body1.get("per_page", len(body1.get("data", [])))
+    total = body1.get("total", None)
+    total_pages = None
+    # Si SurveyMonkey devuelve headers con total_pages:
+    if 'X-Total-Pages' in resp1.headers:
+        total_pages = int(resp1.headers['X-Total-Pages'])
+    elif total and per_page:
+        total_pages = (total + per_page - 1) // per_page
+    else:
+        # fallback si no hay total: usamos links.next
+        total_pages = 1
+        tmp = body1.get("links", {})
+        while tmp.get("next"):
+            total_pages += 1
+            tmp = {}  # no paginar más en esta lógica simple
+
+    logger.info(f"Total respuestas estimadas: {total}, por página: {per_page}, total_pages: {total_pages}")
+
+    all_results = body1.get("data", [])
+    # bajar páginas 2...total_pages
+    for page in range(2, total_pages+1):
+        u = f"{HOST}{ENDPOINT}?page={page}&per_page={per_page}"
+        resp = get_with_retries(u, headers, page=page)
+        if resp is None or resp.status_code != 200:
+            logger.error(f"Página {page}: falló permanentemente. Abortando dump completo.")
+            break
+        d = resp.json().get("data", [])
+        logger.info(f"Página {page}: agregando {len(d)} registros")
+        all_results.extend(d)
+
+    logger.info(f"FIN de recuperación: bajadas {len(all_results)} respuestas sobre un estimado de {total} en {page} páginas.")
+
+    # Obtener detalles del survey para mapear preguntas
+    SURVEY_DETAILS_ENDPOINT = f"/v3/surveys/{survey_id}/details"
+    logger.info("Recuperando detalles del survey para mapear preguntas y respuestas...")
     survey_details = requests.get(f"{HOST}{SURVEY_DETAILS_ENDPOINT}", headers=headers).json()
 
-    # Mapeo de preguntas y opciones
     choice_map = {}
     question_map = {}
-    for page in survey_details.get("pages", []):
-        for question in page.get("questions", []):
+
+    for page_data in survey_details.get("pages", []):
+        for question in page_data.get("questions", []):
             question_map[question["id"]] = question["headings"][0]["heading"]
             if "answers" in question and "choices" in question["answers"]:
                 for answer in question["answers"]["choices"]:
                     choice_map[answer["id"]] = answer["text"]
 
-    logger.info("Bajando respuestas... ¡aguantá que esto se pone copado!")
-    page = 1
-    per_page = 10000
-    all_responses = []
-
-    while True:
-        url = f"{HOST}{SURVEY_RESPONSES_ENDPOINT}?page={page}&per_page={per_page}"
-        response_data = get_with_retries(url, headers)
-
-        if response_data is None:
-            logger.error("No se pudo recuperar respuestas luego de varios intentos.")
-            break
-
-        responses_json = response_data.json().get("data", [])
-        if not responses_json:
-            break
-
-        all_responses.extend(responses_json)
-        page += 1
-
-    logger.info("Procesando respuestas... que no se nos escape nada")
+    # Procesar respuestas
     responses_dict = {}
 
-    for response in all_responses:
+    for response in all_results:
         respondent_id = response["id"]
         if respondent_id not in responses_dict:
             responses_dict[respondent_id] = {}
@@ -112,8 +127,8 @@ def obtener_y_guardar_survey():
         responses_dict[respondent_id]['Boca'] = response.get('custom_variables', {}).get('Boca', '')
         responses_dict[respondent_id]['date_created'] = response.get('date_created', '')[:10]
 
-        for page_data in response.get("pages", []):
-            for question in page_data.get("questions", []):
+        for page in response.get("pages", []):
+            for question in page.get("questions", []):
                 question_id = question["id"]
                 for answer in question.get("answers", []):
                     if "choice_id" in answer:
@@ -124,9 +139,8 @@ def obtener_y_guardar_survey():
                         responses_dict[respondent_id][question_id] = answer["text"]
 
     df_responses = pd.DataFrame.from_dict(responses_dict, orient='index')
-    all_responses = []  # Limpiamos memoria
 
-    # Limpiar HTML
+    # Limpiar HTML (si hay columnas con texto en span, etc.)
     def extract_text_from_span(html_text):
         if not isinstance(html_text, str):
             return html_text
@@ -135,27 +149,20 @@ def obtener_y_guardar_survey():
     if '152421787' in df_responses.columns:
         df_responses['152421787'] = df_responses['152421787'].apply(extract_text_from_span)
 
+    # Renombrar columnas a sus títulos reales
     df_responses.rename(columns=question_map, inplace=True)
     df_responses.columns = [extract_text_from_span(col) for col in df_responses.columns]
 
-    logger.info(f"DataFrame armado: {df_responses.shape[0]} filas y {df_responses.shape[1]} columnas.")
-
-    # Serializar
-    logger.info("Serializando DataFrame para guardarlo en la DB...")
+    # luego guardado:
+    logger.info("Serializando y guardando en la DB…")
     with BytesIO() as output:
         df_responses.to_pickle(output)
         binary_data = output.getvalue()
-
-    logger.info("Guardando el survey nuevo en la DB... a meterle garra")
+    logger.info("Limpiando tabla anterior y agregando nueva")
     db.session.query(TercerSurvey).delete()
     db.session.flush()
-
-    new_survey = TercerSurvey(data=binary_data)
-    db.session.add(new_survey)
+    db.session.add(TercerSurvey(data=binary_data))
     db.session.commit()
-
-    elapsed_time = datetime.now() - hora_inicio
-    logger.info(f"Survey nuevo guardado. Tiempo transcurrido: {elapsed_time}")
-
+    elapsed = datetime.now() - hora_inicio
+    logger.info(f"Survey guardado EXITOSAMENTE: {len(df_responses)} filas en {elapsed}.")
     gc.collect()
-    return
