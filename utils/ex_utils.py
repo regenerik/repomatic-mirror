@@ -320,7 +320,7 @@ def get_resumes(file_content):
     resultados = []
     pedido = 0
     for apies, comentarios in comentarios_por_apies.items():
-        prompt = f"""
+        prompt = fr"""
         A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
 
         1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
@@ -469,7 +469,7 @@ def get_resumes_of_all(file_content):
     resultados = []
     pedido = 0
     for apies, comentarios in comentarios_por_apies.items():
-        prompt = f"""
+        prompt = fr"""
         A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {apies}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
         (En tu respuesta, respeta los títulos como se encuentran escritos)
         1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.

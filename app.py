@@ -141,41 +141,40 @@ def cargar_todos_los_reportes_iniciales():
 
 # Función para cargar los usuarios iniciales
 def cargar_usuarios_iniciales():
-    # Borramos todos los usuarios existentes sin llorar
-    User.query.delete()
-    db.session.commit()
-    print("Usuarios anteriores eliminados. Cargando nuevos usuarios...")
-    logger.info("Usuarios anteriores eliminados. Cargando nuevos usuarios...")
+    if User.query.count() == 0:  # Verificamos si la tabla User está vacía
+        usuarios_iniciales = [
+            {
+                "email": os.getenv('EMAIL1'),
+                "name": os.getenv('NAME1'),
+                "password": os.getenv('PASSWORD1'),
+                "dni": os.getenv('DNI1'),
+                "admin": os.getenv('ADMIN1') == 'True',
+                "url_image": os.getenv('URL_IMAGE1')
+            },
+            {
+                "email": os.getenv('EMAIL2'),
+                "name": os.getenv('NAME2'),
+                "password": os.getenv('PASSWORD2'),
+                "dni": os.getenv('DNI2'),
+                "admin": os.getenv('ADMIN2') == 'True',
+                "url_image": os.getenv('URL_IMAGE2')
+            }
+        ]
 
-    usuarios_iniciales = [
-        {
-            "email": os.getenv(f'EMAIL{i}'),
-            "name": os.getenv(f'NAME{i}'),
-            "password": os.getenv(f'PASSWORD{i}'),
-            "dni": os.getenv(f'DNI{i}'),
-            "admin": os.getenv(f'ADMIN{i}') == 'True',
-            "url_image": os.getenv(f'URL_IMAGE{i}')
-        }
-        for i in range(1, 14)  # Del 1 al 13 inclusive
-        if os.getenv(f'EMAIL{i}')  # Solo si hay mail en el .env
-    ]
+        for usuario in usuarios_iniciales:
+            password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
+            new_user = User(
+                email=usuario['email'],
+                name=usuario['name'],
+                password=password_hash,
+                dni=usuario['dni'],
+                admin=usuario['admin'],
+                url_image=usuario['url_image']
+            )
+            db.session.add(new_user)
 
-
-
-    for usuario in usuarios_iniciales:
-        password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
-        new_user = User(
-            email=usuario['email'],
-            name=usuario['name'],
-            password=password_hash,
-            dni=usuario['dni'],
-            admin=usuario['admin'],
-            url_image=usuario['url_image']
-        )
-        db.session.add(new_user)
-
-    db.session.commit()
-    print("Usuarios nuevos cargados con éxito, maestro.")
+        db.session.commit()
+        print("Usuarios iniciales cargados correctamente.")
 
 with app.app_context():
     db.init_app(app)
