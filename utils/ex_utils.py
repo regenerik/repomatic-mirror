@@ -772,7 +772,7 @@ def get_resumes_for_apies(apies_input, db_data):
         return f"No se encontraron comentarios para la estación {apies_input}"
 
     # Crear el prompt de OpenAI con los comentarios filtrados
-    prompt = f"""
+    prompt = fr"""
         A continuación, tienes una lista de comentarios de clientes sobre la estación de servicio {str(apies_input)}. Necesito que realices un resumen **sin sesgos** de los comentarios y respondas las siguientes indicaciones:
 
         1. **Resumen de comentarios sin sesgos**: Proporciona un análisis claro de los comentarios de los clientes. Si se mencionan nombres, citarlos en la respuesta con el motivo.
