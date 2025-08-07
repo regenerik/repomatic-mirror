@@ -343,6 +343,12 @@ def existencia_excel():
         return jsonify({"message": f"Error al confirmar la existencia del archivo: {str(e)}", "ok": False}), 500
 
 
+@admin_bp.route('/check-token', methods=['GET'])
+@jwt_required()
+def check_token():
+    # Si el JWT es válido, responde 200 OK
+    return jsonify({"valid": True}), 200
+
 # RUTA PRUEBA PARA INPUT DE MENTIMETER>>>>>>>>>>>>>>>>>>>>
 
 
