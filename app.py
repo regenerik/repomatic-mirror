@@ -141,27 +141,31 @@ def cargar_todos_los_reportes_iniciales():
 
 # Función para cargar los usuarios iniciales
 def cargar_usuarios_iniciales():
-    if User.query.count() == 0:  # Verificamos si la tabla User está vacía
-        usuarios_iniciales = [
-            {
-                "email": os.getenv('EMAIL1'),
-                "name": os.getenv('NAME1'),
-                "password": os.getenv('PASSWORD1'),
-                "dni": os.getenv('DNI1'),
-                "admin": os.getenv('ADMIN1') == 'True',
-                "url_image": os.getenv('URL_IMAGE1')
-            },
-            {
-                "email": os.getenv('EMAIL2'),
-                "name": os.getenv('NAME2'),
-                "password": os.getenv('PASSWORD2'),
-                "dni": os.getenv('DNI2'),
-                "admin": os.getenv('ADMIN2') == 'True',
-                "url_image": os.getenv('URL_IMAGE2')
-            }
-        ]
+    usuarios_env = []
+    i = 1
+    while True:
+        email = os.getenv(f'EMAIL{i}')
+        if not email:
+            break
 
-        for usuario in usuarios_iniciales:
+        usuario = {
+            "email": email,
+            "name": os.getenv(f'NAME{i}'),
+            "password": os.getenv(f'PASSWORD{i}'),
+            "dni": os.getenv(f'DNI{i}'),
+            "admin": os.getenv(f'ADMIN{i}') == 'True',
+            "url_image": os.getenv(f'URL_IMAGE{i}')
+        }
+        usuarios_env.append(usuario)
+        i += 1
+
+    # Emails ya registrados en la DB
+    emails_en_db = {user.email for user in User.query.all()}
+
+    nuevos_agregados = 0
+
+    for usuario in usuarios_env:
+        if usuario['email'] not in emails_en_db:
             password_hash = bcrypt.generate_password_hash(usuario['password']).decode('utf-8')
             new_user = User(
                 email=usuario['email'],
@@ -172,9 +176,13 @@ def cargar_usuarios_iniciales():
                 url_image=usuario['url_image']
             )
             db.session.add(new_user)
+            nuevos_agregados += 1
 
+    if nuevos_agregados > 0:
         db.session.commit()
-        print("Usuarios iniciales cargados correctamente.")
+        print(f"✅ {nuevos_agregados} nuevos usuarios cargados.")
+    else:
+        print("👌 No se cargó ningún usuario nuevo. Todo al día.")
 
 with app.app_context():
     db.init_app(app)
